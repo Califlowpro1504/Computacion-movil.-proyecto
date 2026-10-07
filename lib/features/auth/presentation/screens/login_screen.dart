@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../validators/auth_validators.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,8 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _cargando = true);
 
-      // TODO: conectar con AuthRepository cuando esté listo Firebase
-      // await authRepository.login(correo, password);
+      // TODO: conectar con AuthRepository (login real)
 
       setState(() => _cargando = false);
     }
@@ -120,7 +120,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('¿No tienes cuenta?'),
                     TextButton(
                       onPressed: () {
-                        // TODO: navegar a pantalla de registro (RF-001)
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        );
                       },
                       child: const Text('Regístrate'),
                     ),
