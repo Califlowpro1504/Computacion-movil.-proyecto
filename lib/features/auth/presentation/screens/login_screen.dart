@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
+import '../../data/repositories/auth_repository_impl.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _correoController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authRepository = AuthRepositoryImpl();
   bool _obscurePassword = true;
   bool _cargando = false;
 
@@ -23,15 +25,31 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _iniciarSesion() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _cargando = true);
+  Future<void> _iniciarSesion() async {
+  if (!_formKey.currentState!.validate()) return;
 
-      // TODO: conectar con AuthRepository (login real)
+  setState(() => _cargando = true);
 
-      setState(() => _cargando = false);
-    }
+  try {
+    await _authRepository.login(
+      correo: _correoController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Inicio de sesión exitoso.')),
+    );
+    // TODO: navegar a /home cuando tengamos el router
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+    );
+  } finally {
+    if (mounted) setState(() => _cargando = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
