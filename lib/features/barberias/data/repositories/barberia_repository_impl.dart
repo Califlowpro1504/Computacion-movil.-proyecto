@@ -1,46 +1,80 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../domain/entities/barberia.dart';
 import '../../domain/repositories/barberia_repository.dart';
 
 class BarberiaRepositoryImpl implements BarberiaRepository {
-  final List<Barberia> _barberias = [];
+  final FirebaseFirestore _firestore;
+
+  BarberiaRepositoryImpl({
+    FirebaseFirestore? firestore,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> get _barberiasCollection =>
+      _firestore.collection('barberias');
 
   @override
   Future<List<Barberia>> obtenerBarberias() async {
-    return List.unmodifiable(_barberias);
+    final snapshot = await _barberiasCollection.get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+
+      return Barberia(
+        id: doc.id,
+        nombre: data['nombre'] ?? '',
+        direccion: data['direccion'] ?? '',
+        telefono: data['telefono'] ?? '',
+        imagen: data['imagen'] ?? '',
+        activa: data['activa'] ?? true,
+      );
+    }).toList();
   }
 
   @override
   Future<Barberia?> obtenerBarberiaPorId(String id) async {
-    for (final barberia in _barberias) {
-      if (barberia.id == id) {
-        return barberia;
-      }
+    final doc = await _barberiasCollection.doc(id).get();
+
+    if (!doc.exists) {
+      return null;
     }
 
-    return null;
+    final data = doc.data()!;
+
+    return Barberia(
+      id: doc.id,
+      nombre: data['nombre'] ?? '',
+      direccion: data['direccion'] ?? '',
+      telefono: data['telefono'] ?? '',
+      imagen: data['imagen'] ?? '',
+      activa: data['activa'] ?? true,
+    );
   }
 
   @override
   Future<void> crearBarberia(Barberia barberia) async {
-    _barberias.add(barberia);
+    await _barberiasCollection.doc(barberia.id).set({
+      'nombre': barberia.nombre,
+      'direccion': barberia.direccion,
+      'telefono': barberia.telefono,
+      'imagen': barberia.imagen,
+      'activa': barberia.activa,
+    });
   }
 
   @override
   Future<void> actualizarBarberia(Barberia barberia) async {
-    final index = _barberias.indexWhere(
-      (elemento) => elemento.id == barberia.id,
-    );
-
-    if (index != -1) {
-      _barberias[index] = barberia;
-    }
+    await _barberiasCollection.doc(barberia.id).update({
+      'nombre': barberia.nombre,
+      'direccion': barberia.direccion,
+      'telefono': barberia.telefono,
+      'imagen': barberia.imagen,
+      'activa': barberia.activa,
+    });
   }
 
   @override
   Future<void> eliminarBarberia(String id) async {
-    _barberias.removeWhere(
-      (barberia) => barberia.id == id,
-    );
+    await _barberiasCollection.doc(id).delete();
   }
 }
-final List<Barberia> _barberias = [];
