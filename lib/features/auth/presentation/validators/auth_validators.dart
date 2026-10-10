@@ -17,8 +17,8 @@ class AuthValidators {
     if (value == null || value.trim().isEmpty) {
       return 'Ingresa un correo electrónico.';
     }
-    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!regex.hasMatch(value)) {
+    final regex = RegExp(r'^[\w.+-]+@([\w-]+\.)+[\w-]{2,}$');
+if (!regex.hasMatch(value.trim())) {
       return 'Ingresa un correo electrónico válido.';
     }
     return null;

@@ -5,7 +5,7 @@ import '../../domain/repositories/auth_repository.dart';
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
 
-  @override
+   @override
   Future<AppUser> register({
     required String nombre,
     required String apellido,
@@ -17,21 +17,17 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await _client.auth.signUp(
         email: correo,
         password: password,
+        data: {
+          'nombre': nombre,
+          'apellido': apellido,
+          'telefono': telefono,
+        },
       );
 
       final userId = response.user?.id;
       if (userId == null) {
         throw Exception('No se pudo crear la cuenta.');
       }
-
-      await _client.from('profiles').insert({
-        'id': userId,
-        'nombre': nombre,
-        'apellido': apellido,
-        'telefono': telefono,
-        'rol': 'cliente',
-        'terminos_aceptados': true,
-      });
 
       return AppUser(
         id: userId,
