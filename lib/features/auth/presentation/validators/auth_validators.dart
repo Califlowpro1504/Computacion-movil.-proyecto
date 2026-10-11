@@ -35,12 +35,24 @@ if (!regex.hasMatch(value.trim())) {
     return null;
   }
 
+    // Registro: contraseña robusta (mínimo 8, una mayúscula y un número)
   static String? validarPassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'La contraseña es obligatoria.';
     }
-    if (value.length < 6) {
+    final cumple = value.length >= 8 &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'[0-9]').hasMatch(value);
+    if (!cumple) {
       return 'La contraseña no cumple con los requisitos establecidos.';
+    }
+    return null;
+  }
+
+  // Login: solo verifica que no esté vacía
+  static String? validarPasswordLogin(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'La contraseña es obligatoria.';
     }
     return null;
   }

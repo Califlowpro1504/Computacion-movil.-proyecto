@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                   ),
-                  validator: AuthValidators.validarPassword,
+                  validator: AuthValidators.validarPasswordLogin,
                 ),
                 const SizedBox(height: 8),
 
