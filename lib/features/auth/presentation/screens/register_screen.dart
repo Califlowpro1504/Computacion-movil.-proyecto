@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/auth_panel.dart';
 import '../validators/auth_validators.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 
@@ -11,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _confirmacionKey = GlobalKey<FormFieldState<String>>();
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
   final _correoController = TextEditingController();
@@ -73,19 +75,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Crear cuenta')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+      body: AuthPanel(
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const AuthHeading(
+                  title: 'Crea tu cuenta',
+                  subtitle: 'Un nuevo capítulo para tu estilo.',
+                ),
                 TextFormField(
                   controller: _nombreController,
                   decoration: const InputDecoration(
                     labelText: 'Nombre',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: AuthValidators.validarNombre,
                 ),
@@ -95,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _apellidoController,
                   decoration: const InputDecoration(
                     labelText: 'Apellido',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: AuthValidators.validarApellido,
                 ),
@@ -106,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.alternate_email),
                   ),
                   validator: AuthValidators.validarCorreo,
                 ),
@@ -117,7 +121,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Número de teléfono',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone_outlined),
                   ),
                   validator: AuthValidators.validarTelefono,
                 ),
@@ -125,11 +129,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 TextFormField(
                   controller: _passwordController,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: (_) {
+                    if (_confirmacionController.text.isNotEmpty) {
+                      _confirmacionKey.currentState?.validate();
+                    }
+                  },
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    helperText: 'Mínimo 12 caracteres. Puedes usar una frase con espacios.\nEvita contraseñas comunes o caracteres repetidos.',
+                    helperMaxLines: 3,
+                    errorMaxLines: 3,
                     suffixIcon: IconButton(
+                      tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
                       icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
@@ -139,12 +155,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
 
                 TextFormField(
+                  key: _confirmacionKey,
                   controller: _confirmacionController,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   obscureText: _obscureConfirmacion,
                   decoration: InputDecoration(
                     labelText: 'Confirmar contraseña',
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.verified_user_outlined),
                     suffixIcon: IconButton(
+                      tooltip: _obscureConfirmacion ? 'Mostrar confirmación' : 'Ocultar confirmación',
                       icon: Icon(_obscureConfirmacion ? Icons.visibility : Icons.visibility_off),
                       onPressed: () => setState(() => _obscureConfirmacion = !_obscureConfirmacion),
                     ),
@@ -173,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     padding: const EdgeInsets.only(left: 12),
                     child: Text(
                       _errorTerminos!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
                     ),
                   ),
                 const SizedBox(height: 24),
@@ -199,7 +220,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ],
             ),
-          ),
         ),
       ),
     );
