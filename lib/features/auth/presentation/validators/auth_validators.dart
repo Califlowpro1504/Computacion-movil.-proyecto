@@ -35,17 +35,48 @@ if (!regex.hasMatch(value.trim())) {
     return null;
   }
 
-  static String? validarPassword(String? value) {
+  static const longitudMinimaPassword = 12;
+
+  // Lista local limitada; no sustituye la protección del servidor.
+  static const _passwordsComunes = {
+    '123456789012',
+    '1234567890123456',
+    'password1234',
+    'password12345',
+    'qwerty123456',
+    'qwerty123456789',
+    'contraseña123',
+    'contrasena123',
+  };
+
+  static String? validarPasswordLogin(String? value) {
     if (value == null || value.isEmpty) {
       return 'La contraseña es obligatoria.';
     }
-    if (value.length < 6) {
-      return 'La contraseña no cumple con los requisitos establecidos.';
+    return null;
+  }
+
+  static String? validarPassword(String? value) {
+    final error = validarPasswordLogin(value);
+    if (error != null) return error;
+    final password = value!;
+    if (password.runes.length < longitudMinimaPassword) {
+      return 'Usa al menos 12 caracteres.';
+    }
+    // Normalizar solo para detectar patrones; nunca modificar lo enviado.
+    final patron = password.trim().toLowerCase();
+    if (patron.isEmpty ||
+        patron.runes.toSet().length == 1 ||
+        _passwordsComunes.contains(patron)) {
+      return 'Esta contraseña es muy predecible. Usa una frase única.';
     }
     return null;
   }
 
   static String? validarConfirmacion(String? password, String? confirmacion) {
+    if (confirmacion == null || confirmacion.isEmpty) {
+      return 'Confirma tu contraseña.';
+    }
     if (confirmacion != password) {
       return 'Las contraseñas no coinciden.';
     }
