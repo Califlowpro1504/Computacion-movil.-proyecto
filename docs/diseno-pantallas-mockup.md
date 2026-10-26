@@ -104,3 +104,10 @@ Verificación local necesaria: `flutter analyze`, `flutter test` y
 cierre de sesión, errores de cierre, teclado y pantallas estrechas. Las pruebas
 incluyen anchos de 320 y 1200 con texto ampliado. Estas pruebas nuevas no se han
 ejecutado en el entorno de edición por falta del SDK de Flutter.
+
+## Prioridad confirmada: selección de roles
+
+Antes del perfil, implementar el flujo de Cliente / Barbero / Administrador de
+la segunda pantalla de la referencia. Consultar [roles y acceso](roles-y-acceso.md)
+para el comportamiento esperado, dependencias con el equipo y criterios de prueba.
+Este flujo aún no está implementado.
