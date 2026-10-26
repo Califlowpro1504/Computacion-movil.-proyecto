@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:computacion_movil_proyecto/core/theme/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:computacion_movil_proyecto/features/auth/presentation/screens/session_gate.dart';
 import 'package:computacion_movil_proyecto/features/home/presentation/screens/home_screen.dart';
@@ -24,6 +25,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sesión iniciada'), findsOneWidget);
     expect(find.text('Formulario de acceso'), findsNothing);
+    await tester.tap(find.text('Mi cuenta'));
+    await tester.pumpAndSettle();
+    expect(find.text('prueba@example.com'), findsOneWidget);
     await tester.ensureVisible(find.text('Cerrar sesión'));
     await tester.tap(find.text('Cerrar sesión'));
     await tester.pumpAndSettle();
@@ -53,6 +57,8 @@ void main() {
         throw Exception('Fallo de conexión');
       },
     )));
+    await tester.tap(find.text('Mi cuenta'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Cerrar sesión'));
     await tester.tap(find.text('Cerrar sesión'));
     await tester.pumpAndSettle();
@@ -62,4 +68,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(attempts, 2);
   });
+
+  for (final width in [320.0, 1200.0]) {
+    testWidgets('inicio y cuenta caben en ancho $width con texto grande', (tester) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.5)),
+          child: child!,
+        ),
+        home: HomeScreen(
+          email: 'correo.largo.de.prueba@example.com',
+          onSignOut: () async {},
+        ),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Descubre lo local.'), findsOneWidget);
+      await tester.tap(find.text('Mi cuenta'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('correo.largo.de.prueba@example.com'), findsOneWidget);
+      await tester.tap(find.text('Inicio'));
+      await tester.pumpAndSettle();
+      expect(find.text('Descubre lo local.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
 }
