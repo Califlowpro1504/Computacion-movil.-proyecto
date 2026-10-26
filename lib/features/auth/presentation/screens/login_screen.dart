@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Inicio de sesión exitoso.')),
     );
-    // TODO: navegar a /home cuando tengamos el router
+    // SessionGate muestra el inicio al recibir la sesión de Supabase.
   } catch (e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

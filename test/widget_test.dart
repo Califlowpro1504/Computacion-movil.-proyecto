@@ -1,30 +1,65 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:computacion_movil_proyecto/main.dart';
+import 'package:computacion_movil_proyecto/features/auth/presentation/screens/session_gate.dart';
+import 'package:computacion_movil_proyecto/features/home/presentation/screens/home_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('login, inicio y cierre siguen los cambios de sesión', (tester) async {
+    final changes = StreamController<bool>();
+    addTearDown(changes.close);
+    await tester.pumpWidget(MaterialApp(
+      home: SessionGate(
+        sessionChanges: changes.stream,
+        initiallySignedIn: false,
+        signedOutBuilder: (_) => const Text('Formulario de acceso'),
+        signedInBuilder: (_) => HomeScreen(
+          email: 'prueba@example.com',
+          onSignOut: () async => changes.add(false),
+        ),
+      ),
+    ));
+    expect(find.text('Formulario de acceso'), findsOneWidget);
+    changes.add(true);
+    await tester.pumpAndSettle();
+    expect(find.text('Sesión iniciada'), findsOneWidget);
+    expect(find.text('Formulario de acceso'), findsNothing);
+    await tester.ensureVisible(find.text('Cerrar sesión'));
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+    expect(find.text('Formulario de acceso'), findsOneWidget);
+    expect(find.text('Sesión iniciada'), findsNothing);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('una sesión restaurada muestra directamente el inicio', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: SessionGate(
+        sessionChanges: const Stream<bool>.empty(),
+        initiallySignedIn: true,
+        signedOutBuilder: (_) => const Text('Acceso'),
+        signedInBuilder: (_) => const Text('Inicio'),
+      ),
+    ));
+    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.text('Acceso'), findsNothing);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('un cierre fallido muestra error y permite reintentar', (tester) async {
+    var attempts = 0;
+    await tester.pumpWidget(MaterialApp(home: HomeScreen(
+      email: null,
+      onSignOut: () async {
+        attempts++;
+        throw Exception('Fallo de conexión');
+      },
+    )));
+    await tester.ensureVisible(find.text('Cerrar sesión'));
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+    expect(find.text('No pudimos cerrar la sesión. Inténtalo de nuevo.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Cerrar sesión'));
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
   });
 }

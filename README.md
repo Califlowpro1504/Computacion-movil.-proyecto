@@ -87,10 +87,11 @@ test/                      # Pruebas automáticas
 | Registro de usuario (RF-001) | ✅ Hecho |
 | Inicio de sesión (RF-002) | ✅ Hecho |
 | Seguridad de base de datos (RLS y rol en servidor) | ✅ Hecho |
-| Política de contraseña robusta | 🔄 En curso |
+| Política de contraseña robusta | Validación local implementada; verificar configuración de Supabase |
 | Recuperación de contraseña (RF-003) | ⬜ Pendiente |
 | Perfil (RF-004) | ⬜ Pendiente |
-| Manejo de sesión (Riverpod) y navegación por rol (go_router) | ⬜ Pendiente |
+| Sesión e inicio | Implementado con eventos de Supabase; pendiente validación real |
+| Navegación por rol y gestión con Riverpod | ⬜ Pendiente |
 | Marketplace: inicio, búsqueda, filtros, comercios (RF-005 a RF-011) | ⬜ Pendiente |
 | Módulos de Productos/Pedidos y Barberías/Citas | Ver ramas de cada integrante |
 
@@ -162,7 +163,7 @@ Aplicamos la seguridad desde el diseño, con controles en el servidor y no solo 
 | **RLS en `profiles`** | Cada usuario solo puede ver y editar su propio perfil. | RNF01, RNF03 |
 | **Rol asignado en el servidor** | Un trigger de la base de datos crea el perfil con rol fijo `cliente`. La app no puede elegir el rol. | RNF03 |
 | **Sin cambio de rol ni de estado** | La política de edición impide que un usuario se suba de rol o se reactive solo. | RNF03 |
-| **Contraseña robusta** | Mínimo 8 caracteres, una mayúscula y un número. | RNF02 |
+| **Contraseña robusta** | Validador local: mínimo 12 caracteres, frases permitidas y rechazo de algunos patrones comunes. Verificar política en Supabase. | RNF02 |
 | **Mensajes genéricos en el login** | No revela si el correo existe o cuál dato falló. | RNF01 |
 | **Contraseña fuera de la base** | La contraseña la gestiona Supabase Auth y nunca se guarda en `profiles`. | RNF01 |
 | **Secretos fuera del repositorio** | Solo se usa la clave publicable. | RNF01 |
@@ -217,3 +218,8 @@ chore: ignora android/build en git
 ## Documentación de requerimientos
 
 Los requerimientos funcionales (RF-001 a RF-034) y no funcionales (RNF01 a RNF20) están definidos en el documento de requerimientos del proyecto CUT & GO.
+
+
+## Sesión y pantalla de inicio
+
+Ver [comportamiento y pasos de validación](docs/sesion-y-pantalla-inicio.md).
