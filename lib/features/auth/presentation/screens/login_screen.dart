@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/auth_panel.dart';
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.background),
                         )
                       : const Text('Iniciar sesión'),
                 ),

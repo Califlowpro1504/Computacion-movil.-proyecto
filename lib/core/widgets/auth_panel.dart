@@ -14,7 +14,7 @@ class AuthPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF28121F), AppTheme.background, Color(0xFF171222)],
+          colors: [AppTheme.elevated, AppTheme.background, AppTheme.background],
         ),
       ),
       child: SafeArea(
@@ -31,8 +31,8 @@ class AuthPanel extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFF51404D)),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.border),
                     boxShadow: const [
                       BoxShadow(color: Color(0x66000000), blurRadius: 32, offset: Offset(0, 12)),
                     ],
@@ -62,29 +62,36 @@ class AuthHeading extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF2A1823),
+            color: AppTheme.background,
             border: Border.all(color: AppTheme.accent),
           ),
-          child: const Icon(Icons.content_cut, size: 30, color: AppTheme.ivory),
+          child: const Icon(Icons.content_cut, size: 30, color: AppTheme.accent),
         ),
         const SizedBox(height: 20),
         const Text(
           'CUT & GO',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: 'serif', fontSize: 34, letterSpacing: 3,
+            fontFamily: 'serif', fontStyle: FontStyle.italic,
+            fontSize: 38, letterSpacing: 1.5,
             fontWeight: FontWeight.w700, color: AppTheme.ivory,
           ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'ESTILO · COMUNIDAD · COMERCIOS',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppTheme.accent, fontSize: 10, letterSpacing: 1.5),
         ),
         const SizedBox(height: 16),
         const Row(
           children: [
-            Expanded(child: Divider(color: Color(0xFF51404D))),
+            Expanded(child: Divider(color: AppTheme.border)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: Icon(Icons.diamond_outlined, size: 16, color: AppTheme.accent),
             ),
-            Expanded(child: Divider(color: Color(0xFF51404D))),
+            Expanded(child: Divider(color: AppTheme.border)),
           ],
         ),
         const SizedBox(height: 16),
