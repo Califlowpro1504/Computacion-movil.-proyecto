@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/auth_panel.dart';
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -40,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Inicio de sesión exitoso.')),
     );
-    // TODO: navegar a /home cuando tengamos el router
+    // SessionGate muestra el inicio al recibir la sesión de Supabase.
   } catch (e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -54,34 +56,23 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      body: AuthPanel(
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'CUT & GO',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                const AuthHeading(
+                  title: 'Bienvenido de nuevo',
+                  subtitle: 'Tu estilo tiene carácter. Entra y hazlo tuyo.',
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Inicia sesión',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                const SizedBox(height: 32),
-
                 TextFormField(
                   controller: _correoController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.alternate_email),
                   ),
                   validator: AuthValidators.validarCorreo,
                 ),
@@ -89,11 +80,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 TextFormField(
                   controller: _passwordController,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
+                      tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
                       icon: Icon(_obscurePassword
                           ? Icons.visibility
                           : Icons.visibility_off),
@@ -102,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                   ),
-                  validator: AuthValidators.validarPassword,
+                  validator: AuthValidators.validarPasswordLogin,
                 ),
                 const SizedBox(height: 8),
 
@@ -126,14 +120,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.background),
                         )
                       : const Text('Iniciar sesión'),
                 ),
                 const SizedBox(height: 16),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Text('¿No tienes cuenta?'),
                     TextButton(
@@ -148,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-          ),
         ),
       ),
     );
