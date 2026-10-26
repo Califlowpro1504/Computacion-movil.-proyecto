@@ -11,8 +11,8 @@ Las diapositivas 13 a 16 presentan el enfoque adecuado de múltiples comercios:
 inicio, categorías, búsqueda, registro y gestión de cada negocio.
 La marca de la aplicación sigue siendo CUT & GO; no se renombra a Juanjo Marketplace.
 
-Mantener el tema oscuro existente: fondo negro, superficies oscuras, textos marfil,
-acciones borgoña y acentos claros. Usar tipografía decorativa solo en la marca;
+La referencia visual posterior de diez pantallas sustituye la paleta borgoña:
+fondo negro azulado, superficies azul pizarra, textos marfil y acciones doradas. Usar tipografía decorativa solo en la marca;
 formularios y contenido deben seguir siendo fáciles de leer.
 
 ## Once pantallas principales
@@ -83,3 +83,24 @@ los accesos de RF-005 sin duplicar menús ni crear botones sin funcionamiento.
 
 Cada entrega debe contener commits que describan su comportamiento y pruebas.
 Este documento define la referencia de diseño; no implementa las once pantallas.
+
+
+## Adaptación implementada: negro y dorado
+
+Referencia posterior: imagen con splash, acceso por rol, inicio, barberos, tienda,
+citas y paneles de administración. Se toma su lenguaje visual, sin cambiar la
+marca CUT & GO ni incorporar los módulos de otros integrantes.
+
+- Login y registro: nueva paleta, emblema dorado, marca serif y campos oscuros.
+- Inicio: cabecera, bloque destacado y tarjetas de categorías próximas.
+- Mi cuenta: sección navegable con correo real de la sesión y cierre de sesión.
+- Las categorías son informativas, no un catálogo consultado en Supabase.
+- No se añadieron selección de roles, barberos ficticios, precios ni reservas.
+- Los roles privilegiados deben seguir asignándose y verificándose en el servidor.
+- Se mantienen los validadores y los eventos de autenticación.
+
+Verificación local necesaria: `flutter analyze`, `flutter test` y
+`flutter run -d edge`. Comprobar login, registro, cambio entre Inicio/Mi cuenta,
+cierre de sesión, errores de cierre, teclado y pantallas estrechas. Las pruebas
+incluyen anchos de 320 y 1200 con texto ampliado. Estas pruebas nuevas no se han
+ejecutado en el entorno de edición por falta del SDK de Flutter.
