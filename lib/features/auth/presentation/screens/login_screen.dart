@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,30 +28,30 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _iniciarSesion() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _cargando = true);
+    setState(() => _cargando = true);
 
-  try {
-    await _authRepository.login(
-      correo: _correoController.text.trim(),
-      password: _passwordController.text,
-    );
+    try {
+      await _authRepository.login(
+        correo: _correoController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Inicio de sesión exitoso.')),
-    );
-    // TODO: navegar a /home cuando tengamos el router
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-    );
-  } finally {
-    if (mounted) setState(() => _cargando = false);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -94,9 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Contraseña',
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
                       },
@@ -139,7 +143,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
                         );
                       },
                       child: const Text('Regístrate'),

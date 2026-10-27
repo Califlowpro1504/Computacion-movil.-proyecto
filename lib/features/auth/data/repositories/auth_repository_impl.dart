@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -17,28 +18,25 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await _client.auth.signUp(
         email: correo,
         password: password,
+        data: {
+          'nombre': nombre.trim(),
+          'apellido': apellido.trim(),
+          'telefono': telefono.trim(),
+        },
       );
 
-      final userId = response.user?.id;
-      if (userId == null) {
+      final user = response.user;
+
+      if (user == null) {
         throw Exception('No se pudo crear la cuenta.');
       }
 
-      await _client.from('profiles').insert({
-        'id': userId,
-        'nombre': nombre,
-        'apellido': apellido,
-        'telefono': telefono,
-        'rol': 'cliente',
-        'terminos_aceptados': true,
-      });
-
       return AppUser(
-        id: userId,
-        nombre: nombre,
-        apellido: apellido,
+        id: user.id,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
         correo: correo,
-        telefono: telefono,
+        telefono: telefono.trim(),
         rol: 'cliente',
         terminosAceptados: true,
         fechaRegistro: DateTime.now(),
@@ -48,6 +46,7 @@ class AuthRepositoryImpl implements AuthRepository {
           e.message.toLowerCase().contains('already exists')) {
         throw Exception('Este correo ya se encuentra registrado.');
       }
+
       throw Exception(e.message);
     }
   }

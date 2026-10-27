@@ -1,12 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/cita.dart';
+import '../../domain/services/disponibilidad_citas.dart';
+import '../../../horarios/domain/entities/horario.dart';
 
 class CitaRepository {
   final SupabaseClient _client;
+  final DisponibilidadCitas _disponibilidad;
 
-  CitaRepository({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  CitaRepository({
+    SupabaseClient? client,
+    this._disponibilidad = const DisponibilidadCitas(),
+  }) : _client = client ?? Supabase.instance.client;
 
   static const String _tabla = 'citas';
 
@@ -21,6 +26,11 @@ class CitaRepository {
       fechaFin: DateTime.parse(m['fecha_fin'].toString()).toLocal(),
       estado: (m['estado'] ?? 'pendiente').toString(),
     );
+  }
+
+  String _hhmm(dynamic valor) {
+    final texto = (valor ?? '00:00').toString();
+    return texto.length >= 5 ? texto.substring(0, 5) : texto;
   }
 
   Future<List<Cita>> obtenerMisCitas() async {
@@ -44,7 +54,6 @@ class CitaRepository {
     required String barberoId,
     required String servicioId,
     required DateTime fechaInicio,
-    required DateTime fechaFin,
   }) async {
     final usuario = _client.auth.currentUser;
 
@@ -52,16 +61,81 @@ class CitaRepository {
       throw Exception('Debes iniciar sesión para reservar una cita.');
     }
 
-    if (!fechaFin.isAfter(fechaInicio)) {
-      throw Exception(
-        'La hora de finalización debe ser posterior a la de inicio.',
-      );
-    }
+    final inicio = fechaInicio.toLocal();
 
-    if (!fechaInicio.isAfter(DateTime.now())) {
+    if (!inicio.isAfter(DateTime.now())) {
       throw Exception('Selecciona una fecha y hora futuras.');
     }
 
+    // Consultar la duración del servicio activo.
+    final servicio = await _client
+        .from('servicios')
+        .select('duracion_min')
+        .eq('id', servicioId)
+        .eq('barberia_id', barberiaId)
+        .eq('activo', true)
+        .maybeSingle();
+
+    if (servicio == null) {
+      throw Exception('El servicio no existe o no está disponible.');
+    }
+
+    final duracion = (servicio['duracion_min'] as num).toInt();
+
+    if (duracion <= 0) {
+      throw Exception('El servicio tiene una duración no válida.');
+    }
+
+    // Calcular automáticamente la hora de finalización.
+    final fin = inicio.add(Duration(minutes: duracion));
+
+    // Consultar los horarios activos del barbero.
+    final horariosData = await _client
+        .from('horarios')
+        .select()
+        .eq('barbero_id', barberoId)
+        .eq('activo', true);
+
+    final horarios = horariosData.map<Horario>((m) {
+      return Horario(
+        id: m['id'].toString(),
+        barberoId: m['barbero_id'].toString(),
+        dia: (m['dia'] as num).toInt(),
+        horaInicio: _hhmm(m['hora_inicio']),
+        horaFin: _hhmm(m['hora_fin']),
+        activo: m['activo'] as bool? ?? true,
+      );
+    }).toList();
+
+    final cabe = _disponibilidad.cabeEnHorario(
+      inicio: inicio,
+      duracionMinutos: duracion,
+      horarios: horarios,
+    );
+
+    if (!cabe) {
+      throw Exception(
+        'La cita no cabe dentro del horario laboral del barbero.',
+      );
+    }
+
+    // Buscar citas que se crucen con el intervalo solicitado.
+    final ocupadas = await _client
+        .from(_tabla)
+        .select()
+        .eq('barbero_id', barberoId)
+        .inFilter('estado', ['pendiente', 'confirmada'])
+        .lt('fecha_inicio', fin.toUtc().toIso8601String())
+        .gt('fecha_fin', inicio.toUtc().toIso8601String());
+
+    final citas = ocupadas.map<Cita>(_fromMap).toList();
+
+    if (_disponibilidad.tieneCruce(inicio: inicio, fin: fin, citas: citas)) {
+      throw Exception('Ese horario ya está reservado. Elige otro.');
+    }
+
+    // Guardar la cita. Supabase también aplicará las políticas
+    // de seguridad y la restricción de solapamiento de la base de datos.
     final data = await _client
         .from(_tabla)
         .insert({
@@ -69,8 +143,8 @@ class CitaRepository {
           'barberia_id': barberiaId,
           'barbero_id': barberoId,
           'servicio_id': servicioId,
-          'fecha_inicio': fechaInicio.toUtc().toIso8601String(),
-          'fecha_fin': fechaFin.toUtc().toIso8601String(),
+          'fecha_inicio': inicio.toUtc().toIso8601String(),
+          'fecha_fin': fin.toUtc().toIso8601String(),
           'estado': 'pendiente',
         })
         .select()
