@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../citas/presentation/screens/reservar_cita_screen.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../citas/presentation/screens/mis_citas_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -56,6 +57,17 @@ class HomeScreen extends StatelessWidget {
                 },
                 icon: const Icon(Icons.calendar_month),
                 label: const Text('Reservar una cita'),
+              ),
+              const SizedBox(height: 12),
+
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MisCitasScreen()),
+                  );
+                },
+                icon: const Icon(Icons.event_note),
+                label: const Text('Mis citas'),
               ),
             ],
           ),

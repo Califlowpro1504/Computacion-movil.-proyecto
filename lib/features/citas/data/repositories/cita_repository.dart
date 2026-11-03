@@ -33,6 +33,7 @@ class CitaRepository {
     return texto.length >= 5 ? texto.substring(0, 5) : texto;
   }
 
+  /// Obtiene las citas del usuario que inició sesión.
   Future<List<Cita>> obtenerMisCitas() async {
     final usuario = _client.auth.currentUser;
 
@@ -49,6 +50,29 @@ class CitaRepository {
     return data.map<Cita>(_fromMap).toList();
   }
 
+  /// Obtiene las citas pendientes o confirmadas que ocupan
+  /// parte del día seleccionado para un barbero.
+  Future<List<Cita>> obtenerCitasDelDia({
+    required String barberoId,
+    required DateTime fecha,
+  }) async {
+    final inicioDia = DateTime(fecha.year, fecha.month, fecha.day);
+
+    final finDia = inicioDia.add(const Duration(days: 1));
+
+    final data = await _client
+        .from(_tabla)
+        .select()
+        .eq('barbero_id', barberoId)
+        .inFilter('estado', ['pendiente', 'confirmada'])
+        .lt('fecha_inicio', finDia.toUtc().toIso8601String())
+        .gt('fecha_fin', inicioDia.toUtc().toIso8601String())
+        .order('fecha_inicio');
+
+    return data.map<Cita>(_fromMap).toList();
+  }
+
+  /// Crea una cita validando usuario, servicio, horario y cruces.
   Future<Cita> crear({
     required String barberiaId,
     required String barberoId,
@@ -65,6 +89,21 @@ class CitaRepository {
 
     if (!inicio.isAfter(DateTime.now())) {
       throw Exception('Selecciona una fecha y hora futuras.');
+    }
+
+    // Validar que el barbero pertenezca a la barbería y esté activo.
+    final barbero = await _client
+        .from('barberos')
+        .select('id')
+        .eq('id', barberoId)
+        .eq('barberia_id', barberiaId)
+        .eq('activo', true)
+        .maybeSingle();
+
+    if (barbero == null) {
+      throw Exception(
+        'El barbero no pertenece a esta barbería o no está disponible.',
+      );
     }
 
     // Consultar la duración del servicio activo.
@@ -86,7 +125,7 @@ class CitaRepository {
       throw Exception('El servicio tiene una duración no válida.');
     }
 
-    // Calcular automáticamente la hora de finalización.
+    // Calcular la hora de finalización.
     final fin = inicio.add(Duration(minutes: duracion));
 
     // Consultar los horarios activos del barbero.
@@ -134,8 +173,7 @@ class CitaRepository {
       throw Exception('Ese horario ya está reservado. Elige otro.');
     }
 
-    // Guardar la cita. Supabase también aplicará las políticas
-    // de seguridad y la restricción de solapamiento de la base de datos.
+    // Guardar la cita en Supabase.
     final data = await _client
         .from(_tabla)
         .insert({
