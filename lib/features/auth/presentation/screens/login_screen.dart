@@ -4,9 +4,17 @@ import '../../../../core/widgets/auth_panel.dart';
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import 'role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    required this.accessRole,
+    required this.onBack,
+  });
+
+  final AccessRole accessRole;
+  final VoidCallback onBack;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -19,6 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authRepository = AuthRepositoryImpl();
   bool _obscurePassword = true;
   bool _cargando = false;
+  String get _roleLabel {
+  return switch (widget.accessRole) {
+    AccessRole.cliente => 'Cliente',
+    AccessRole.barbero => 'Barbero',
+    AccessRole.administrador => 'Administrador',
+  };
+}
 
   @override
   void dispose() {
@@ -56,6 +71,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+    leading: IconButton(
+      tooltip: 'Cambiar tipo de acceso',
+      onPressed: _cargando ? null : widget.onBack,
+      icon: const Icon(Icons.arrow_back),
+    ),
+    title: Text('Acceso: $_roleLabel'),
+  ),
       body: AuthPanel(
           child: Form(
             key: _formKey,
