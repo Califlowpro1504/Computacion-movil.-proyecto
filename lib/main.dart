@@ -4,6 +4,7 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/screens/session_gate.dart';
 import 'features/home/presentation/screens/home_screen.dart';
+import 'features/auth/presentation/screens/role_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  AccessRole? _selectedAccessRole;
+
   final _auth = Supabase.instance.client.auth;
   late final Stream<bool> _sessionChanges = _auth.onAuthStateChange
       .map((event) => event.session != null)
@@ -36,7 +39,25 @@ class _MyAppState extends State<MyApp> {
       home: SessionGate(
         sessionChanges: _sessionChanges,
         initiallySignedIn: _auth.currentSession != null,
-        signedOutBuilder: (_) => const LoginScreen(),
+        signedOutBuilder: (_) {
+          final selectedRole = _selectedAccessRole;
+
+          if (selectedRole == null) {
+            return RoleSelectionScreen(
+              onRoleSelected: (role) {
+                setState(() => _selectedAccessRole = role);
+              },
+            );
+          }
+
+          return LoginScreen(
+            key: ValueKey(selectedRole),
+            accessRole: selectedRole,
+            onBack: () {
+              setState(() => _selectedAccessRole = null);
+            },
+          );
+        },
         signedInBuilder: (_) => HomeScreen(
           email: _auth.currentUser?.email,
           onSignOut: () => _auth.signOut(scope: SignOutScope.local),
