@@ -77,25 +77,6 @@ database/                  # Scripts SQL versionados
 test/                      # Pruebas automáticas
 ```
 
----
-
-## Estado actual
-
-| Funcionalidad | Estado |
-|---|---|
-| Estructura del proyecto y arquitectura | ✅ Hecho |
-| Registro de usuario (RF-001) | ✅ Hecho |
-| Inicio de sesión (RF-002) | ✅ Hecho |
-| Seguridad de base de datos (RLS y rol en servidor) | ✅ Hecho |
-| Política de contraseña robusta | 🔄 En curso |
-| Recuperación de contraseña (RF-003) | ⬜ Pendiente |
-| Perfil (RF-004) | ⬜ Pendiente |
-| Manejo de sesión (Riverpod) y navegación por rol (go_router) | ⬜ Pendiente |
-| Marketplace: inicio, búsqueda, filtros, comercios (RF-005 a RF-011) | ⬜ Pendiente |
-| Módulos de Productos/Pedidos y Barberías/Citas | Ver ramas de cada integrante |
-
----
-
 ## Cómo ejecutar el proyecto
 
 ### Requisitos
