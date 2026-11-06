@@ -17,6 +17,7 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   bool _cargando = true;
   bool _cancelando = false;
+  bool _reprogramando = false;
 
   String? _error;
 
@@ -42,9 +43,7 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
       final citas = await _citaRepository.obtenerMisCitas();
 
       final barberias = await _client.from('barberias').select('id, nombre');
-
       final barberos = await _client.from('barberos').select('id, nombre');
-
       final servicios = await _client.from('servicios').select('id, nombre');
 
       if (!mounted) return;
@@ -84,6 +83,10 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   bool _esProxima(Cita cita) {
     return cita.estado == 'pendiente' || cita.estado == 'confirmada';
+  }
+
+  bool _puedeModificar(Cita cita) {
+    return _esProxima(cita) && cita.fechaInicio.isAfter(DateTime.now());
   }
 
   Future<void> _cancelarCita(Cita cita) async {
@@ -143,6 +146,176 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
     }
   }
 
+  Future<void> _reprogramarCita(Cita cita) async {
+    final ahora = DateTime.now();
+
+    final fechaInicial = cita.fechaInicio.isAfter(ahora)
+        ? cita.fechaInicio
+        : ahora.add(const Duration(minutes: 1));
+
+    final nuevaFecha = await showDatePicker(
+      context: context,
+      initialDate: fechaInicial,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      helpText: 'Selecciona la nueva fecha',
+    );
+
+    if (nuevaFecha == null || !mounted) return;
+
+    setState(() {
+      _reprogramando = true;
+    });
+
+    try {
+      final horarios = await _citaRepository.obtenerHorariosDisponibles(
+        citaId: cita.id,
+        fecha: nuevaFecha,
+      );
+
+      if (!mounted) return;
+
+      if (horarios.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No hay horarios disponibles para esta fecha.'),
+          ),
+        );
+        return;
+      }
+
+      final fechaHora = await showDialog<DateTime>(
+        context: context,
+        builder: (dialogContext) {
+          DateTime? seleccionada;
+
+          return StatefulBuilder(
+            builder: (context, actualizarDialogo) {
+              return AlertDialog(
+                title: const Text('Horarios disponibles'),
+                content: SizedBox(
+                  width: 350,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Selecciona una hora para el '
+                          '${_formatearFecha(nuevaFecha)}',
+                        ),
+                        const SizedBox(height: 12),
+                        ...horarios.map((hora) {
+                          final seleccionadaActual = seleccionada == hora;
+
+                          return Card(
+                            child: ListTile(
+                              leading: Icon(
+                                seleccionadaActual
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                color: seleccionadaActual
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey,
+                              ),
+                              title: Text(
+                                _formatearHora(hora),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Finaliza a las ${_formatearHora(hora.add(cita.fechaFin.difference(cita.fechaInicio)))}',
+                              ),
+                              selected: seleccionadaActual,
+                              onTap: () {
+                                actualizarDialogo(() {
+                                  seleccionada = hora;
+                                });
+                              },
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Volver'),
+                  ),
+                  FilledButton(
+                    onPressed: seleccionada == null
+                        ? null
+                        : () => Navigator.pop(dialogContext, seleccionada),
+                    child: const Text('Continuar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (fechaHora == null || !mounted) return;
+
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Confirmar reprogramación'),
+          content: Text(
+            '¿Deseas cambiar tu cita para el '
+            '${_formatearFecha(fechaHora)} a las '
+            '${_formatearHora(fechaHora)}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Volver'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmar != true || !mounted) return;
+
+      await _citaRepository.reprogramar(
+        citaId: cita.id,
+        nuevaFechaInicio: fechaHora,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La cita fue reprogramada correctamente.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      await _cargarCitas();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo reprogramar la cita: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _reprogramando = false;
+        });
+      }
+    }
+  }
+
   String _nombreEstado(String estado) {
     switch (estado) {
       case 'pendiente':
@@ -190,15 +363,7 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   Widget _construirTarjeta(Cita cita) {
     final color = _colorEstado(cita.estado);
-
-    final puedeCancelar =
-        _esProxima(cita) && cita.fechaInicio.isAfter(DateTime.now());
-    debugPrint(
-      'ESTADO: ${cita.estado} | '
-      'FECHA: ${cita.fechaInicio} | '
-      'AHORA: ${DateTime.now()} | '
-      'PUEDE CANCELAR: $puedeCancelar',
-    );
+    final puedeModificar = _puedeModificar(cita);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -267,17 +432,31 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
                   '${_formatearHora(cita.fechaFin)}',
             ),
 
-            // Botón para cancelar citas futuras.
-            if (puedeCancelar) ...[
+            if (puedeModificar) ...[
               const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: _cancelando ? null : () => _cancelarCita(cita),
-                  icon: const Icon(Icons.cancel_outlined),
-                  label: const Text('Cancelar cita'),
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                ),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: (_cancelando || _reprogramando)
+                        ? null
+                        : () => _reprogramarCita(cita),
+                    icon: const Icon(Icons.edit_calendar),
+                    label: const Text('Reprogramar'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: (_cancelando || _reprogramando)
+                        ? null
+                        : () => _cancelarCita(cita),
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Cancelar cita'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -325,7 +504,6 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   @override
   Widget build(BuildContext context) {
     final proximas = _citas.where(_esProxima).toList();
-
     final historial = _citas.where((cita) => !_esProxima(cita)).toList();
 
     return Scaffold(
