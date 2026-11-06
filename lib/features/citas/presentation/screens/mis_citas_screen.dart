@@ -16,6 +16,8 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   final SupabaseClient _client = Supabase.instance.client;
 
   bool _cargando = true;
+  bool _cancelando = false;
+
   String? _error;
 
   List<Cita> _citas = [];
@@ -39,55 +41,32 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
     try {
       final citas = await _citaRepository.obtenerMisCitas();
 
-      final barberiaIds = citas.map((c) => c.barberiaId).toSet().toList();
-      final barberoIds = citas.map((c) => c.barberoId).toSet().toList();
-      final servicioIds = citas.map((c) => c.servicioId).toSet().toList();
+      final barberias = await _client.from('barberias').select('id, nombre');
+
+      final barberos = await _client.from('barberos').select('id, nombre');
+
+      final servicios = await _client.from('servicios').select('id, nombre');
+
+      if (!mounted) return;
 
       _barberias.clear();
       _barberos.clear();
       _servicios.clear();
 
-      if (barberiaIds.isNotEmpty) {
-        final datos = await _client
-            .from('barberias')
-            .select('id, nombre')
-            .inFilter('id', barberiaIds);
-
-        for (final item in datos) {
-          _barberias[item['id'].toString()] = (item['nombre'] ?? 'Barbería')
-              .toString();
-        }
+      for (final item in barberias) {
+        _barberias[item['id'].toString()] =
+            item['nombre']?.toString() ?? 'Barbería';
       }
 
-      if (barberoIds.isNotEmpty) {
-        final datos = await _client
-            .from('barberos')
-            .select('id, nombre, apellido')
-            .inFilter('id', barberoIds);
-
-        for (final item in datos) {
-          final nombre = '${item['nombre'] ?? ''} ${item['apellido'] ?? ''}'
-              .trim();
-
-          _barberos[item['id'].toString()] = nombre.isEmpty
-              ? 'Barbero'
-              : nombre;
-        }
+      for (final item in barberos) {
+        _barberos[item['id'].toString()] =
+            item['nombre']?.toString() ?? 'Barbero';
       }
 
-      if (servicioIds.isNotEmpty) {
-        final datos = await _client
-            .from('servicios')
-            .select('id, nombre')
-            .inFilter('id', servicioIds);
-
-        for (final item in datos) {
-          _servicios[item['id'].toString()] = (item['nombre'] ?? 'Servicio')
-              .toString();
-        }
+      for (final item in servicios) {
+        _servicios[item['id'].toString()] =
+            item['nombre']?.toString() ?? 'Servicio';
       }
-
-      if (!mounted) return;
 
       setState(() {
         _citas = citas;
@@ -105,6 +84,63 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   bool _esProxima(Cita cita) {
     return cita.estado == 'pendiente' || cita.estado == 'confirmada';
+  }
+
+  Future<void> _cancelarCita(Cita cita) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar cita'),
+        content: const Text('¿Estás seguro de que deseas cancelar esta cita?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    setState(() {
+      _cancelando = true;
+    });
+
+    try {
+      await _citaRepository.cancelar(cita.id);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La cita fue cancelada correctamente.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      await _cargarCitas();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cancelar la cita: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cancelando = false;
+        });
+      }
+    }
   }
 
   String _nombreEstado(String estado) {
@@ -154,6 +190,15 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
 
   Widget _construirTarjeta(Cita cita) {
     final color = _colorEstado(cita.estado);
+
+    final puedeCancelar =
+        _esProxima(cita) && cita.fechaInicio.isAfter(DateTime.now());
+    debugPrint(
+      'ESTADO: ${cita.estado} | '
+      'FECHA: ${cita.fechaInicio} | '
+      'AHORA: ${DateTime.now()} | '
+      'PUEDE CANCELAR: $puedeCancelar',
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -221,6 +266,20 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
               '${_formatearHora(cita.fechaInicio)} - '
                   '${_formatearHora(cita.fechaFin)}',
             ),
+
+            // Botón para cancelar citas futuras.
+            if (puedeCancelar) ...[
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: _cancelando ? null : () => _cancelarCita(cita),
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Cancelar cita'),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -266,16 +325,17 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
   @override
   Widget build(BuildContext context) {
     final proximas = _citas.where(_esProxima).toList();
-    final historial = _citas.where((c) => !_esProxima(c)).toList();
+
+    final historial = _citas.where((cita) => !_esProxima(cita)).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis citas'),
         actions: [
           IconButton(
-            tooltip: 'Actualizar',
-            onPressed: _cargarCitas,
+            onPressed: _cargando ? null : _cargarCitas,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar citas',
           ),
         ],
       ),
@@ -284,19 +344,24 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
           : _error != null
           ? Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, size: 48),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
                     const SizedBox(height: 12),
-                    const Text('No se pudieron cargar tus citas.'),
-                    const SizedBox(height: 8),
-                    Text(_error!, textAlign: TextAlign.center),
+                    Text(
+                      'No se pudieron cargar las citas.\n$_error',
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _cargarCitas,
-                      child: const Text('Intentar nuevamente'),
+                      child: const Text('Reintentar'),
                     ),
                   ],
                 ),
@@ -305,7 +370,7 @@ class _MisCitasScreenState extends State<MisCitasScreen> {
           : RefreshIndicator(
               onRefresh: _cargarCitas,
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 children: [
                   _construirSeccion('Próximas citas', proximas),
                   _construirSeccion('Historial', historial),

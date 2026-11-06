@@ -33,7 +33,6 @@ class CitaRepository {
     return texto.length >= 5 ? texto.substring(0, 5) : texto;
   }
 
-  /// Obtiene las citas del usuario que inició sesión.
   Future<List<Cita>> obtenerMisCitas() async {
     final usuario = _client.auth.currentUser;
 
@@ -50,14 +49,11 @@ class CitaRepository {
     return data.map<Cita>(_fromMap).toList();
   }
 
-  /// Obtiene las citas pendientes o confirmadas que ocupan
-  /// parte del día seleccionado para un barbero.
   Future<List<Cita>> obtenerCitasDelDia({
     required String barberoId,
     required DateTime fecha,
   }) async {
     final inicioDia = DateTime(fecha.year, fecha.month, fecha.day);
-
     final finDia = inicioDia.add(const Duration(days: 1));
 
     final data = await _client
@@ -72,7 +68,6 @@ class CitaRepository {
     return data.map<Cita>(_fromMap).toList();
   }
 
-  /// Crea una cita validando usuario, servicio, horario y cruces.
   Future<Cita> crear({
     required String barberiaId,
     required String barberoId,
@@ -91,7 +86,6 @@ class CitaRepository {
       throw Exception('Selecciona una fecha y hora futuras.');
     }
 
-    // Validar que el barbero pertenezca a la barbería y esté activo.
     final barbero = await _client
         .from('barberos')
         .select('id')
@@ -106,7 +100,6 @@ class CitaRepository {
       );
     }
 
-    // Consultar la duración del servicio activo.
     final servicio = await _client
         .from('servicios')
         .select('duracion_min')
@@ -125,10 +118,8 @@ class CitaRepository {
       throw Exception('El servicio tiene una duración no válida.');
     }
 
-    // Calcular la hora de finalización.
     final fin = inicio.add(Duration(minutes: duracion));
 
-    // Consultar los horarios activos del barbero.
     final horariosData = await _client
         .from('horarios')
         .select()
@@ -158,7 +149,6 @@ class CitaRepository {
       );
     }
 
-    // Buscar citas que se crucen con el intervalo solicitado.
     final ocupadas = await _client
         .from(_tabla)
         .select()
@@ -173,7 +163,6 @@ class CitaRepository {
       throw Exception('Ese horario ya está reservado. Elige otro.');
     }
 
-    // Guardar la cita en Supabase.
     final data = await _client
         .from(_tabla)
         .insert({
@@ -189,5 +178,52 @@ class CitaRepository {
         .single();
 
     return _fromMap(data);
+  }
+
+  /// Cancela una cita del usuario autenticado.
+  Future<void> cancelar(String citaId) async {
+    final usuario = _client.auth.currentUser;
+
+    if (usuario == null) {
+      throw Exception('Debes iniciar sesión para cancelar una cita.');
+    }
+
+    final cita = await _client
+        .from(_tabla)
+        .select('id, estado, fecha_inicio')
+        .eq('id', citaId)
+        .eq('user_id', usuario.id)
+        .maybeSingle();
+
+    if (cita == null) {
+      throw Exception('No se encontró la cita o no tienes permiso.');
+    }
+
+    final estado = cita['estado'].toString();
+
+    final fechaInicio = DateTime.parse(cita['fecha_inicio'].toString())
+        .toLocal();
+
+    if (estado != 'pendiente' && estado != 'confirmada') {
+      throw Exception('Esta cita ya no se puede cancelar.');
+    }
+
+    if (!fechaInicio.isAfter(DateTime.now())) {
+      throw Exception('No puedes cancelar una cita que ya comenzó.');
+    }
+    final resultado = await _client
+        .from(_tabla)
+        .update({'estado': 'cancelada'})
+        .eq('id', citaId)
+        .eq('user_id', usuario.id)
+        .inFilter('estado', ['pendiente', 'confirmada'])
+        .gt('fecha_inicio', DateTime.now().toUtc().toIso8601String())
+        .select('id');
+
+    if (resultado.isEmpty) {
+      throw Exception(
+        'No se pudo cancelar. La cita pudo cambiar de estado o fecha.',
+      );
+    }
   }
 }
