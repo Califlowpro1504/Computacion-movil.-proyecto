@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/barberia.dart';
 import 'crear_barberia_screen.dart';
 import 'editar_barberia_screen.dart';
+import '../../../servicios/presentation/screens/servicios_screen.dart';
 
 class PanelPropietarioScreen extends StatefulWidget {
   const PanelPropietarioScreen({super.key});
@@ -79,6 +80,15 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
     if (resultado == true) {
       _recargarBarberias();
     }
+  }
+
+  Future<void> _administrarServicios(String barberiaId) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiciosScreen(barberiaId: barberiaId),
+      ),
+    );
   }
 
   Widget _botonRegistrar() {
@@ -163,7 +173,8 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Aquí podrás administrar tu barbería y sus citas.',
+                      'Aquí podrás administrar tu barbería, '
+                      'sus servicios y sus citas.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -182,6 +193,7 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+
               ...barberias.map((barberia) {
                 final activa = barberia['activa'] == true;
 
@@ -206,6 +218,12 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                           color: activa ? Colors.green : Colors.orange,
                         ),
                         IconButton(
+                          tooltip: 'Administrar servicios',
+                          icon: const Icon(Icons.content_cut),
+                          onPressed: () =>
+                              _administrarServicios(barberia['id'].toString()),
+                        ),
+                        IconButton(
                           tooltip: 'Editar barbería',
                           icon: const Icon(Icons.edit),
                           onPressed: () => _editarBarberia(barberia),
@@ -215,6 +233,7 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                   ),
                 );
               }),
+
               const SizedBox(height: 12),
               _botonRegistrar(),
             ],

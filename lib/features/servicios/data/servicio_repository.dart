@@ -1,11 +1,12 @@
 ﻿import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../domain/entities/servicio.dart';
 
 class ServicioRepository {
   final SupabaseClient _client;
 
   ServicioRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   static const _tabla = 'servicios';
 
@@ -22,17 +23,20 @@ class ServicioRepository {
   }
 
   Map<String, dynamic> _toMap(Servicio s) => {
-        'barberia_id': s.barberiaId,
-        'nombre': s.nombre,
-        'descripcion': s.descripcion,
-        'precio': s.precio,
-        'duracion_min': s.duracionMin,
-        'activo': s.activo,
-      };
+    'barberia_id': s.barberiaId,
+    'nombre': s.nombre,
+    'descripcion': s.descripcion,
+    'precio': s.precio,
+    'duracion_min': s.duracionMin,
+    'activo': s.activo,
+  };
 
   Future<List<Servicio>> obtenerPorBarberia(String barberiaId) async {
-    final data =
-        await _client.from(_tabla).select().eq('barberia_id', barberiaId);
+    final data = await _client
+        .from(_tabla)
+        .select()
+        .eq('barberia_id', barberiaId);
+
     return data.map<Servicio>(_fromMap).toList();
   }
 
@@ -46,5 +50,9 @@ class ServicioRepository {
 
   Future<void> cambiarEstado(String id, bool activo) async {
     await _client.from(_tabla).update({'activo': activo}).eq('id', id);
+  }
+
+  Future<void> eliminar(String id) async {
+    await _client.from(_tabla).delete().eq('id', id);
   }
 }
