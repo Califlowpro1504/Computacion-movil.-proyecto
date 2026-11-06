@@ -7,7 +7,7 @@ class BarberiaRepositoryImpl implements BarberiaRepository {
   final SupabaseClient _client;
 
   BarberiaRepositoryImpl({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   static const _tabla = 'barberias';
 
@@ -23,13 +23,13 @@ class BarberiaRepositoryImpl implements BarberiaRepository {
   }
 
   Map<String, dynamic> _toMap(Barberia b) => {
-        if (b.id.isNotEmpty) 'id': b.id,
-        'nombre': b.nombre,
-        'direccion': b.direccion,
-        'telefono': b.telefono,
-        'imagen': b.imagen,
-        'activa': b.activa,
-      };
+    if (b.id.isNotEmpty) 'id': b.id,
+    'nombre': b.nombre,
+    'direccion': b.direccion,
+    'telefono': b.telefono,
+    'imagen': b.imagen,
+    'activa': b.activa,
+  };
 
   @override
   Future<List<Barberia>> obtenerBarberias() async {
@@ -39,22 +39,27 @@ class BarberiaRepositoryImpl implements BarberiaRepository {
 
   @override
   Future<Barberia?> obtenerBarberiaPorId(String id) async {
-    final data =
-        await _client.from(_tabla).select().eq('id', id).maybeSingle();
+    final data = await _client.from(_tabla).select().eq('id', id).maybeSingle();
     return data == null ? null : _fromMap(data);
   }
 
   @override
   Future<void> crearBarberia(Barberia barberia) async {
-    await _client.from(_tabla).insert(_toMap(barberia));
+    final usuario = _client.auth.currentUser;
+
+    if (usuario == null) {
+      throw Exception('Debes iniciar sesión para crear una barbería.');
+    }
+
+    await _client.from(_tabla).insert({
+      ..._toMap(barberia),
+      'propietario_id': usuario.id,
+    });
   }
 
   @override
   Future<void> actualizarBarberia(Barberia barberia) async {
-    await _client
-        .from(_tabla)
-        .update(_toMap(barberia))
-        .eq('id', barberia.id);
+    await _client.from(_tabla).update(_toMap(barberia)).eq('id', barberia.id);
   }
 
   @override
