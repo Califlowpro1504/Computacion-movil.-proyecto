@@ -1,12 +1,22 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/auth_panel.dart';
+import '../../data/repositories/auth_repository_impl.dart';
+import '../../domain/entities/user.dart';
 import '../validators/auth_validators.dart';
 import 'register_screen.dart';
-import '../../data/repositories/auth_repository_impl.dart';
-import '../../../home/presentation/screens/home_screen.dart';
+import 'role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    required this.accessRole,
+    required this.onBack,
+  });
+
+  final AccessRole accessRole;
+  final VoidCallback onBack;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,8 +27,18 @@ class _LoginScreenState extends State<LoginScreen> {
   final _correoController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authRepository = AuthRepositoryImpl();
+
   bool _obscurePassword = true;
   bool _cargando = false;
+
+  String get _roleLabel {
+    return switch (widget.accessRole) {
+      AccessRole.cliente => 'Cliente',
+      AccessRole.propietario => 'Propietario',
+      AccessRole.barbero => 'Barbero',
+      AccessRole.administrador => 'Administrador',
+    };
+  }
 
   @override
   void dispose() {
@@ -33,127 +53,155 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _cargando = true);
 
     try {
-      await _authRepository.login(
+      final AppUser perfil = await _authRepository.login(
         correo: _correoController.text.trim(),
         password: _passwordController.text,
       );
 
+      final rolActual = perfil.rol.trim().toLowerCase();
+
+      final tienePermiso = switch (widget.accessRole) {
+        AccessRole.cliente => rolActual == 'cliente',
+        AccessRole.propietario => rolActual == 'propietario',
+        AccessRole.barbero => rolActual == 'barbero',
+        AccessRole.administrador => rolActual == 'admin' || perfil.esAdmin,
+      };
+
+      if (!tienePermiso) {
+        await _authRepository.logout();
+
+        throw Exception(
+          'Esta cuenta no tiene permisos para ingresar como $_roleLabel.',
+        );
+      }
+
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicio de sesión exitoso.')),
       );
+
+      // SessionGate detecta el cambio de sesión de Supabase
+      // y muestra automáticamente la pantalla principal.
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
       );
     } finally {
-      if (mounted) setState(() => _cargando = false);
+      if (mounted) {
+        setState(() => _cargando = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'CUT & GO',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Cambiar tipo de acceso',
+          onPressed: _cargando ? null : widget.onBack,
+          icon: const Icon(Icons.arrow_back),
+        ),
+        title: Text('Acceso: $_roleLabel'),
+      ),
+      body: AuthPanel(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AuthHeading(
+                title: 'Bienvenido de nuevo',
+                subtitle: 'Tu estilo tiene carácter. Entra y hazlo tuyo.',
+              ),
+              TextFormField(
+                controller: _correoController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                  prefixIcon: Icon(Icons.alternate_email),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Inicia sesión',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                const SizedBox(height: 32),
-
-                TextFormField(
-                  controller: _correoController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo electrónico',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: AuthValidators.validarCorreo,
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                validator: AuthValidators.validarCorreo,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                autocorrect: false,
+                enableSuggestions: false,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Mostrar contraseña'
+                        : 'Ocultar contraseña',
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
-                  ),
-                  validator: AuthValidators.validarPassword,
-                ),
-                const SizedBox(height: 8),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
                     onPressed: () {
-                      // TODO: navegar a pantalla de recuperar contraseña (RF-003)
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
                     },
-                    child: const Text('¿Olvidaste tu contraseña?'),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                ElevatedButton(
-                  onPressed: _cargando ? null : _iniciarSesion,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                validator: AuthValidators.validarPasswordLogin,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: implementar recuperación de contraseña (RF-003).
+                  },
+                  child: const Text('¿Olvidaste tu contraseña?'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _cargando ? null : _iniciarSesion,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _cargando
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.background,
+                        ),
+                      )
+                    : const Text('Iniciar sesión'),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text('¿No tienes cuenta?'),
+                  TextButton(
+                    onPressed: _cargando
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
+                              ),
+                            );
+                          },
+                    child: const Text('Regístrate'),
                   ),
-                  child: _cargando
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Iniciar sesión'),
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('¿No tienes cuenta?'),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Regístrate'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

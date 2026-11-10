@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,12 +6,14 @@ import '../../domain/entities/barberia.dart';
 import 'crear_barberia_screen.dart';
 import 'editar_barberia_screen.dart';
 import '../../../servicios/presentation/screens/servicios_screen.dart';
+import '../../../barberos/presentation/screens/barberos_screen.dart';
 
 class PanelPropietarioScreen extends StatefulWidget {
   const PanelPropietarioScreen({super.key});
 
   @override
-  State<PanelPropietarioScreen> createState() => _PanelPropietarioScreenState();
+  State<PanelPropietarioScreen> createState() =>
+      _PanelPropietarioScreenState();
 }
 
 class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
@@ -48,7 +51,9 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
   Future<void> _abrirFormulario() async {
     final resultado = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (context) => const CrearBarberiaScreen()),
+      MaterialPageRoute(
+        builder: (context) => const CrearBarberiaScreen(),
+      ),
     );
 
     if (!mounted) return;
@@ -71,7 +76,9 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
     final resultado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => EditarBarberiaScreen(barberia: barberia),
+        builder: (context) => EditarBarberiaScreen(
+          barberia: barberia,
+        ),
       ),
     );
 
@@ -86,7 +93,20 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ServiciosScreen(barberiaId: barberiaId),
+        builder: (context) => ServiciosScreen(
+          barberiaId: barberiaId,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _administrarBarberos(String barberiaId) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BarberosScreen(
+          barberiaId: barberiaId,
+        ),
       ),
     );
   }
@@ -121,7 +141,9 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
         future: _barberiasFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (snapshot.hasError) {
@@ -136,10 +158,15 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                     const Text(
                       'No se pudieron cargar tus barberías.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    Text('${snapshot.error}', textAlign: TextAlign.center),
+                    Text(
+                      '${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _recargarBarberias,
@@ -161,7 +188,10 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.store_outlined, size: 70),
+                    const Icon(
+                      Icons.store_outlined,
+                      size: 70,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Todavía no tienes una barbería registrada.',
@@ -174,7 +204,7 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'Aquí podrás administrar tu barbería, '
-                      'sus servicios y sus citas.',
+                      'sus servicios, barberos y citas.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -190,43 +220,61 @@ class _PanelPropietarioScreenState extends State<PanelPropietarioScreen> {
             children: [
               const Text(
                 'Mis barberías',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
 
               ...barberias.map((barberia) {
                 final activa = barberia['activa'] == true;
+                final barberiaId = barberia['id'].toString();
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.content_cut)),
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.content_cut),
+                    ),
                     title: Text(
                       barberia['nombre'] ?? 'Sin nombre',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     subtitle: Text(
                       '${barberia['direccion'] ?? 'Sin dirección'}\n'
                       'Teléfono: ${barberia['telefono'] ?? 'No registrado'}',
                     ),
                     isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    trailing: Wrap(
+                      spacing: 0,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Icon(
-                          activa ? Icons.check_circle : Icons.pause_circle,
+                          activa
+                              ? Icons.check_circle
+                              : Icons.pause_circle,
                           color: activa ? Colors.green : Colors.orange,
                         ),
                         IconButton(
                           tooltip: 'Administrar servicios',
                           icon: const Icon(Icons.content_cut),
                           onPressed: () =>
-                              _administrarServicios(barberia['id'].toString()),
+                              _administrarServicios(barberiaId),
+                        ),
+                        IconButton(
+                          tooltip: 'Administrar barberos',
+                          icon: const Icon(Icons.people),
+                          onPressed: () =>
+                              _administrarBarberos(barberiaId),
                         ),
                         IconButton(
                           tooltip: 'Editar barbería',
                           icon: const Icon(Icons.edit),
-                          onPressed: () => _editarBarberia(barberia),
+                          onPressed: () =>
+                              _editarBarberia(barberia),
                         ),
                       ],
                     ),

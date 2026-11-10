@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/barberia.dart';
@@ -40,6 +41,7 @@ class BarberiaRepositoryImpl implements BarberiaRepository {
   @override
   Future<Barberia?> obtenerBarberiaPorId(String id) async {
     final data = await _client.from(_tabla).select().eq('id', id).maybeSingle();
+
     return data == null ? null : _fromMap(data);
   }
 
@@ -50,6 +52,16 @@ class BarberiaRepositoryImpl implements BarberiaRepository {
     if (usuario == null) {
       throw Exception('Debes iniciar sesión para crear una barbería.');
     }
+
+    debugPrint('UID ACTUAL: ${usuario.id}');
+
+    final autorizacion = await _client
+        .from('propietarios_autorizados')
+        .select('user_id')
+        .eq('user_id', usuario.id)
+        .maybeSingle();
+
+    debugPrint('AUTORIZACION: ${autorizacion != null}');
 
     await _client.from(_tabla).insert({
       ..._toMap(barberia),

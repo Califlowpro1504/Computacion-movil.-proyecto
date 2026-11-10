@@ -9,12 +9,9 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<AppUser> login({
-    required String correo,
-    required String password,
-  });
+  Future<AppUser> login({required String correo, required String password});
 
   Future<void> logout();
 
-  AppUser? get usuarioActual;
+  Future<AppUser?> get usuarioActual;
 }
