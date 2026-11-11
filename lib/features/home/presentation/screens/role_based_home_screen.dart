@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../admin/presentation/screens/panel_administrador_screen.dart';
+import 'package:computacion_movil_proyecto/features/admin/presentation/screens/panel_administracion.dart';
+
 import '../../../auth/data/repositories/auth_repository_impl.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../barberias/presentation/screens/panel_propietario_screen.dart';
@@ -64,7 +65,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
           case 'barbero':
             return _panelPendiente(
               titulo: 'Panel del barbero',
-              mensaje: 'Aquí podrás consultar tus citas asignadas.',
+              mensaje: 'AquÃ­ podrÃ¡s consultar tus citas asignadas.',
               icono: Icons.content_cut,
             );
 
@@ -81,10 +82,10 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
   Widget _panelAccesos() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CUT & GO - Administración'),
+        title: const Text('CUT & GO - AdministraciÃ³n'),
         actions: [
           IconButton(
-            tooltip: 'Cerrar sesión',
+            tooltip: 'Cerrar sesiÃ³n',
             onPressed: () => widget.onSignOut(),
             icon: const Icon(Icons.logout),
           ),
@@ -99,7 +100,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
             const Icon(Icons.admin_panel_settings, size: 70),
             const SizedBox(height: 12),
             Text(
-              'Panel de administración',
+              'Panel de administraciÃ³n',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
@@ -114,7 +115,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
                 leading: const Icon(Icons.store, size: 35),
                 title: const Text('Panel de propietario'),
                 subtitle: const Text(
-                  'Gestionar barberías, servicios y barberos.',
+                  'Gestionar barberÃ­as, servicios y barberos.',
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
@@ -129,7 +130,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
               child: ListTile(
                 leading: const Icon(Icons.admin_panel_settings, size: 35),
                 title: const Text('Panel de administrador'),
-                subtitle: const Text('Administración general de CUT & GO.'),
+                subtitle: const Text('AdministraciÃ³n general de CUT & GO.'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.push(
@@ -151,7 +152,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
         title: const Text('Panel del propietario'),
         actions: [
           IconButton(
-            tooltip: 'Cerrar sesión',
+            tooltip: 'Cerrar sesiÃ³n',
             onPressed: () => widget.onSignOut(),
             icon: const Icon(Icons.logout),
           ),
@@ -175,7 +176,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
         title: Text(titulo),
         actions: [
           IconButton(
-            tooltip: 'Cerrar sesión',
+            tooltip: 'Cerrar sesiÃ³n',
             onPressed: () => widget.onSignOut(),
             icon: const Icon(Icons.logout),
           ),
@@ -216,7 +217,7 @@ class _RoleBasedHomeScreenState extends State<RoleBasedHomeScreen> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => widget.onSignOut(),
-                child: const Text('Cerrar sesión'),
+                child: const Text('Cerrar sesiÃ³n'),
               ),
             ],
           ),

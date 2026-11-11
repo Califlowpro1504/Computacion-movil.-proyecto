@@ -33,6 +33,67 @@ class CitaRepository {
     return texto.length >= 5 ? texto.substring(0, 5) : texto;
   }
 
+  // ============================================================
+  // CONSULTA ADMINISTRATIVA: TODAS LAS CITAS
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>> obtenerTodasLasCitasAdmin() async {
+    final usuario = _client.auth.currentUser;
+
+    if (usuario == null) {
+      throw Exception('Debes iniciar sesión para consultar las citas.');
+    }
+
+    final data = await _client
+        .from(_tabla)
+        .select('''
+          id,
+          user_id,
+          barberia_id,
+          barbero_id,
+          servicio_id,
+          fecha_inicio,
+          fecha_fin,
+          estado,
+          barberias(nombre),
+          barberos(nombre, apellido),
+          servicios(nombre)
+        ''')
+        .order('fecha_inicio', ascending: false);
+
+    final usuariosIds = data
+        .map((cita) => cita['user_id'].toString())
+        .toSet()
+        .toList();
+
+    final perfiles = usuariosIds.isEmpty
+        ? <Map<String, dynamic>>[]
+        : await _client
+              .from('profiles')
+              .select('id, nombre, apellido')
+              .inFilter('id', usuariosIds);
+
+    final perfilesPorId = <String, Map<String, dynamic>>{};
+
+    for (final perfil in perfiles) {
+      perfilesPorId[perfil['id'].toString()] = Map<String, dynamic>.from(
+        perfil,
+      );
+    }
+
+    return data.map<Map<String, dynamic>>((cita) {
+      final resultado = Map<String, dynamic>.from(cita);
+
+      resultado['cliente'] = perfilesPorId[cita['user_id'].toString()];
+
+      return resultado;
+    }).toList();
+  }
+
+  // ============================================================
+  // CONSULTA DE CITAS DEL CLIENTE
+  // ============================================================
+
   Future<List<Cita>> obtenerMisCitas() async {
     final usuario = _client.auth.currentUser;
 
@@ -49,11 +110,16 @@ class CitaRepository {
     return data.map<Cita>(_fromMap).toList();
   }
 
+  // ============================================================
+  // CONSULTA DE CITAS DE UN BARBERO EN UN DÍA
+  // ============================================================
+
   Future<List<Cita>> obtenerCitasDelDia({
     required String barberoId,
     required DateTime fecha,
   }) async {
     final inicioDia = DateTime(fecha.year, fecha.month, fecha.day);
+
     final finDia = inicioDia.add(const Duration(days: 1));
 
     final data = await _client
@@ -67,6 +133,10 @@ class CitaRepository {
 
     return data.map<Cita>(_fromMap).toList();
   }
+
+  // ============================================================
+  // CREAR UNA CITA
+  // ============================================================
 
   Future<Cita> crear({
     required String barberiaId,
@@ -180,6 +250,10 @@ class CitaRepository {
     return _fromMap(data);
   }
 
+  // ============================================================
+  // OBTENER HORARIOS DISPONIBLES PARA REPROGRAMAR
+  // ============================================================
+
   Future<List<DateTime>> obtenerHorariosDisponibles({
     required String citaId,
     required DateTime fecha,
@@ -230,6 +304,7 @@ class CitaRepository {
     }
 
     final dia = DateTime(fecha.year, fecha.month, fecha.day);
+
     final finDia = dia.add(const Duration(days: 1));
 
     final horariosData = await _client
@@ -310,7 +385,10 @@ class CitaRepository {
     return disponibles.toSet().toList();
   }
 
-  /// Reprograma una cita futura del usuario autenticado.
+  // ============================================================
+  // REPROGRAMAR UNA CITA
+  // ============================================================
+
   Future<void> reprogramar({
     required String citaId,
     required DateTime nuevaFechaInicio,
@@ -370,7 +448,7 @@ class CitaRepository {
     final duracion = (servicio['duracion_min'] as num).toInt();
 
     if (duracion <= 0) {
-      throw Exception('El servicio tiene una duración no válida.');
+      throw Exception('La duración del servicio no es válida.');
     }
 
     final fin = inicio.add(Duration(minutes: duracion));
@@ -438,7 +516,10 @@ class CitaRepository {
     }
   }
 
-  /// Cancela una cita del usuario autenticado.
+  // ============================================================
+  // CANCELAR UNA CITA
+  // ============================================================
+
   Future<void> cancelar(String citaId) async {
     final usuario = _client.auth.currentUser;
 
