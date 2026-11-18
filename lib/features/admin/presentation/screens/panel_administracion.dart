@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../citas/presentation/screens/administracion_citas_screen.dart';
 import 'usuarios_admin_screen.dart';
 import 'comercios_admin_screen.dart';
+import 'barberias_admin_screen.dart';
 
 class PanelAdministradorScreen extends StatefulWidget {
   const PanelAdministradorScreen({super.key, required this.onSignOut});
@@ -29,10 +30,10 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
     _AdminSection('Resumen', Icons.dashboard_outlined),
     _AdminSection('Usuarios', Icons.people_outline),
     _AdminSection('Comercios', Icons.store_outlined),
-    _AdminSection('Barber�as', Icons.content_cut),
+    _AdminSection('Barberías', Icons.content_cut),
     _AdminSection('Citas', Icons.calendar_month_outlined),
     _AdminSection('Reportes', Icons.bar_chart_outlined),
-    _AdminSection('Configuraci�n', Icons.settings_outlined),
+    _AdminSection('Configuración', Icons.settings_outlined),
   ];
 
   @override
@@ -43,7 +44,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
     _usuariosFuture = _contarRegistros('profiles');
 
-    // Actualmente los comercios est�n representados
+    // Actualmente los comercios están representados
     // por los registros de la tabla barberias.
     _barberiasFuture = _contarRegistros('barberias');
     _comerciosFuture = _barberiasFuture;
@@ -62,10 +63,10 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CUT & GO | Administraci�n'),
+        title: const Text('CUT & GO | Administración'),
         actions: [
           IconButton(
-            tooltip: 'Cerrar sesi�n',
+            tooltip: 'Cerrar sesión',
             onPressed: () => widget.onSignOut(),
             icon: const Icon(Icons.logout),
           ),
@@ -102,7 +103,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
                   'CUT & GO',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                Text('Panel de administraci�n general'),
+                Text('Panel de administración general'),
               ],
             ),
           ),
@@ -130,6 +131,11 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
                       return;
                     }
 
+                    if (index == 3) {
+                      _abrirBarberias();
+                      return;
+                    }
+
                     if (index == 4) {
                       _abrirCitas();
                       return;
@@ -146,7 +152,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Cerrar sesi�n'),
+            title: const Text('Cerrar sesión'),
             onTap: () {
               Navigator.pop(context);
               widget.onSignOut();
@@ -165,7 +171,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
       case 1:
         return _buildModule(
-          'Gesti�n de usuarios',
+          'Gestión de usuarios',
           'Consulta y administra las cuentas registradas en CUT & GO.',
           Icons.people_outline,
           [
@@ -177,23 +183,23 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
       case 2:
         return _buildModule(
-          'Gesti�n de comercios',
+          'Gestión de comercios',
           'Supervisa los comercios registrados en la plataforma.',
           Icons.store_outlined,
           [
             'Consultar comercios',
-            'Revisar informaci�n de los establecimientos',
+            'Revisar información de los establecimientos',
             'Supervisar su estado',
           ],
         );
 
       case 3:
         return _buildModule(
-          'Gesti�n de barber�as',
-          'Administra y supervisa las barber�as registradas.',
+          'Gestión de barberías',
+          'Administra y supervisa las barberías registradas.',
           Icons.content_cut,
           [
-            'Consultar barber�as',
+            'Consultar barberías',
             'Revisar propietarios',
             'Supervisar establecimientos',
           ],
@@ -201,25 +207,25 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
       case 5:
         return _buildModule(
-          'Reportes y estad�sticas',
+          'Reportes y estadísticas',
           'Consulta indicadores generales de la plataforma.',
           Icons.bar_chart_outlined,
           [
             'Actividad de usuarios',
-            'Estad�sticas de comercios',
+            'Estadísticas de comercios',
             'Resumen de citas y pedidos',
           ],
         );
 
       case 6:
         return _buildModule(
-          'Configuraci�n general',
-          'Administra los par�metros generales de CUT & GO.',
+          'Configuración general',
+          'Administra los parámetros generales de CUT & GO.',
           Icons.settings_outlined,
           [
-            'Informaci�n de la plataforma',
-            'Par�metros generales',
-            'Configuraci�n administrativa',
+            'Información de la plataforma',
+            'Parámetros generales',
+            'Configuración administrativa',
           ],
         );
 
@@ -233,7 +239,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Panel de administraci�n',
+          'Panel de administración',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -262,7 +268,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
             final cards = [
               _StatItem('Usuarios', Icons.people_outline, _usuariosFuture),
               _StatItem('Comercios', Icons.store_outlined, _comerciosFuture),
-              _StatItem('Barber�as', Icons.content_cut, _barberiasFuture),
+              _StatItem('Barberías', Icons.content_cut, _barberiasFuture),
               _StatItem('Citas', Icons.calendar_month_outlined, _citasFuture),
             ];
 
@@ -325,8 +331,8 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
           2,
         ),
         _quickAccess(
-          'Barber�as',
-          'Consultar barber�as registradas.',
+          'Barberías',
+          'Consultar barberías registradas.',
           Icons.content_cut,
           3,
         ),
@@ -386,6 +392,13 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
     );
   }
 
+  Future<void> _abrirBarberias() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const BarberiasAdminScreen()),
+    );
+  }
+
   Future<void> _abrirCitas() async {
     await Navigator.push(
       context,
@@ -410,6 +423,11 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
 
           if (index == 2) {
             _abrirComercios();
+            return;
+          }
+
+          if (index == 3) {
+            _abrirBarberias();
             return;
           }
 
@@ -465,7 +483,7 @@ class _PanelAdministradorScreenState extends State<PanelAdministradorScreen> {
                 ),
                 const Divider(),
                 const Text(
-                  'M�dulo visual. Pendiente de conexi�n con Supabase.',
+                  'Módulo visual. Pendiente de conexión con Supabase.',
                 ),
               ],
             ),
