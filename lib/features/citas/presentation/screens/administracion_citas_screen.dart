@@ -19,17 +19,25 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
 
   List<Map<String, dynamic>> _citas = [];
 
+  final Set<String> _citasProcesando = {};
+
   @override
   void initState() {
     super.initState();
     _cargarCitas();
   }
 
-  Future<void> _cargarCitas() async {
-    setState(() {
-      _cargando = true;
-      _error = null;
-    });
+  // ============================================================
+  // CARGAR CITAS
+  // ============================================================
+
+  Future<void> _cargarCitas({bool mostrarCarga = true}) async {
+    if (mostrarCarga && mounted) {
+      setState(() {
+        _cargando = true;
+        _error = null;
+      });
+    }
 
     try {
       final resultado = await _citaRepository.obtenerTodasLasCitasAdmin();
@@ -39,6 +47,7 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
       setState(() {
         _citas = resultado;
         _cargando = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -49,6 +58,10 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
       });
     }
   }
+
+  // ============================================================
+  // CONVERTIR RELACIONES DE SUPABASE EN MAPAS
+  // ============================================================
 
   Map<String, dynamic>? _convertirMapa(dynamic valor) {
     if (valor is Map) {
@@ -74,10 +87,24 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
     return completo.isEmpty ? alternativo : completo;
   }
 
-  String _formatearFecha(dynamic valor) {
-    if (valor == null) return 'No disponible';
+  // ============================================================
+  // FORMATEAR FECHAS Y HORAS
+  // ============================================================
 
-    final fecha = DateTime.parse(valor.toString()).toLocal();
+  DateTime? _convertirFecha(dynamic valor) {
+    if (valor == null) return null;
+
+    try {
+      return DateTime.parse(valor.toString()).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _formatearFecha(dynamic valor) {
+    final fecha = _convertirFecha(valor);
+
+    if (fecha == null) return 'No disponible';
 
     final dia = fecha.day.toString().padLeft(2, '0');
     final mes = fecha.month.toString().padLeft(2, '0');
@@ -86,15 +113,19 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
   }
 
   String _formatearHora(dynamic valor) {
-    if (valor == null) return '--:--';
+    final fecha = _convertirFecha(valor);
 
-    final fecha = DateTime.parse(valor.toString()).toLocal();
+    if (fecha == null) return '--:--';
 
     final hora = fecha.hour.toString().padLeft(2, '0');
     final minutos = fecha.minute.toString().padLeft(2, '0');
 
     return '$hora:$minutos';
   }
+
+  // ============================================================
+  // ESTADOS Y COLORES
+  // ============================================================
 
   String _nombreEstado(String estado) {
     switch (estado.toLowerCase()) {
@@ -126,6 +157,16 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
     }
   }
 
+  // ============================================================
+  // CONTADORES Y FILTROS
+  // ============================================================
+
+  int _contarEstado(String estado) {
+    return _citas.where((cita) {
+      return cita['estado']?.toString().toLowerCase() == estado;
+    }).length;
+  }
+
   List<Map<String, dynamic>> get _citasFiltradas {
     if (_filtroEstado == 'todas') return _citas;
 
@@ -134,17 +175,24 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
     }).toList();
   }
 
-  Widget _tarjetaResumen(String titulo, int cantidad, Color color) {
+  Widget _tarjetaResumen(
+    String titulo,
+    int cantidad,
+    Color color,
+    IconData icono,
+  ) {
     return SizedBox(
-      width: 145,
+      width: 155,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Icon(icono, color: color, size: 23),
+              const SizedBox(height: 9),
               Text(titulo, style: TextStyle(color: Colors.grey.shade700)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               Text(
                 cantidad.toString(),
                 style: TextStyle(
@@ -161,18 +209,40 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
   }
 
   Widget _construirResumen() {
-    final pendientes = _citas.where((c) => c['estado'] == 'pendiente').length;
-    final confirmadas = _citas.where((c) => c['estado'] == 'confirmada').length;
-    final completadas = _citas.where((c) => c['estado'] == 'completada').length;
-
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: [
-        _tarjetaResumen('Total', _citas.length, Colors.blue),
-        _tarjetaResumen('Pendientes', pendientes, Colors.orange),
-        _tarjetaResumen('Confirmadas', confirmadas, Colors.green),
-        _tarjetaResumen('Completadas', completadas, Colors.indigo),
+        _tarjetaResumen(
+          'Total',
+          _citas.length,
+          Colors.blue,
+          Icons.calendar_month,
+        ),
+        _tarjetaResumen(
+          'Pendientes',
+          _contarEstado('pendiente'),
+          Colors.orange,
+          Icons.pending_actions,
+        ),
+        _tarjetaResumen(
+          'Confirmadas',
+          _contarEstado('confirmada'),
+          Colors.green,
+          Icons.check_circle_outline,
+        ),
+        _tarjetaResumen(
+          'Completadas',
+          _contarEstado('completada'),
+          Colors.indigo,
+          Icons.task_alt,
+        ),
+        _tarjetaResumen(
+          'Canceladas',
+          _contarEstado('cancelada'),
+          Colors.red,
+          Icons.cancel_outlined,
+        ),
       ],
     );
   }
@@ -207,6 +277,10 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
     );
   }
 
+  // ============================================================
+  // INFORMACIÓN DE CADA CITA
+  // ============================================================
+
   Widget _dato(IconData icono, String titulo, String valor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
@@ -224,6 +298,263 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // CONFIRMAR ACCIONES
+  // ============================================================
+
+  Future<bool> _confirmarAccion({
+    required String titulo,
+    required String mensaje,
+    required String textoBoton,
+  }) async {
+    final resultado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(titulo),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Volver'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: Text(textoBoton),
+            ),
+          ],
+        );
+      },
+    );
+
+    return resultado ?? false;
+  }
+
+  // ============================================================
+  // CAMBIAR ESTADO DE UNA CITA
+  // ============================================================
+
+  Future<void> _gestionarEstado({
+    required Map<String, dynamic> cita,
+    required String nuevoEstado,
+  }) async {
+    final citaId = cita['id']?.toString();
+
+    if (citaId == null || citaId.isEmpty) {
+      _mostrarMensaje(
+        'No se encontró el identificador de la cita.',
+        esError: true,
+      );
+      return;
+    }
+
+    if (_citasProcesando.contains(citaId)) return;
+
+    String titulo;
+    String mensaje;
+    String textoBoton;
+    String mensajeExito;
+
+    switch (nuevoEstado) {
+      case 'confirmada':
+        titulo = 'Confirmar cita';
+        mensaje = '¿Deseas confirmar esta cita?';
+        textoBoton = 'Confirmar';
+        mensajeExito = 'La cita fue confirmada correctamente.';
+        break;
+
+      case 'cancelada':
+        titulo = 'Cancelar cita';
+        mensaje = '¿Estás seguro de que deseas cancelar esta cita?';
+        textoBoton = 'Cancelar cita';
+        mensajeExito = 'La cita fue cancelada correctamente.';
+        break;
+
+      case 'completada':
+        titulo = 'Completar cita';
+        mensaje = '¿Deseas marcar esta cita como completada?';
+        textoBoton = 'Completar';
+        mensajeExito = 'La cita fue completada correctamente.';
+        break;
+
+      default:
+        return;
+    }
+
+    final confirmado = await _confirmarAccion(
+      titulo: titulo,
+      mensaje: mensaje,
+      textoBoton: textoBoton,
+    );
+
+    if (!confirmado || !mounted) return;
+
+    setState(() {
+      _citasProcesando.add(citaId);
+    });
+
+    try {
+      await _citaRepository.gestionarEstado(
+        citaId: citaId,
+        nuevoEstado: nuevoEstado,
+      );
+
+      if (!mounted) return;
+
+      await _cargarCitas(mostrarCarga: false);
+
+      if (!mounted) return;
+
+      _mostrarMensaje(mensajeExito);
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'No se pudo actualizar la cita: ${_limpiarError(e)}',
+        esError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _citasProcesando.remove(citaId);
+        });
+      }
+    }
+  }
+
+  String _limpiarError(Object error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _mostrarMensaje(String mensaje, {bool esError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          backgroundColor: esError ? Colors.red : Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ============================================================
+  // BOTONES DISPONIBLES SEGÚN ESTADO Y FECHAS
+  // ============================================================
+
+  Widget _construirAcciones(Map<String, dynamic> cita) {
+    final estado = cita['estado']?.toString().toLowerCase() ?? '';
+    final citaId = cita['id']?.toString() ?? '';
+    final procesando = _citasProcesando.contains(citaId);
+
+    final fechaInicio = _convertirFecha(cita['fecha_inicio']);
+    final fechaFin = _convertirFecha(cita['fecha_fin']);
+
+    final ahora = DateTime.now();
+
+    final esFutura = fechaInicio != null && fechaInicio.isAfter(ahora);
+
+    final puedeCompletar = fechaFin != null && !fechaFin.isAfter(ahora);
+
+    if (estado != 'pendiente' && estado != 'confirmada') {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(height: 20),
+        if (procesando)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (estado == 'pendiente')
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ElevatedButton.icon(
+                onPressed: esFutura
+                    ? () {
+                        _gestionarEstado(cita: cita, nuevoEstado: 'confirmada');
+                      }
+                    : null,
+                icon: const Icon(Icons.check),
+                label: const Text('Confirmar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: esFutura
+                    ? () {
+                        _gestionarEstado(cita: cita, nuevoEstado: 'cancelada');
+                      }
+                    : null,
+                icon: const Icon(Icons.close),
+                label: const Text('Cancelar'),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+              ),
+            ],
+          )
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ElevatedButton.icon(
+                onPressed: puedeCompletar
+                    ? () {
+                        _gestionarEstado(cita: cita, nuevoEstado: 'completada');
+                      }
+                    : null,
+                icon: const Icon(Icons.task_alt),
+                label: const Text('Completar'),
+              ),
+              OutlinedButton.icon(
+                onPressed: esFutura
+                    ? () {
+                        _gestionarEstado(cita: cita, nuevoEstado: 'cancelada');
+                      }
+                    : null,
+                icon: const Icon(Icons.close),
+                label: const Text('Cancelar'),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+              ),
+            ],
+          ),
+        if (!esFutura && estado == 'pendiente')
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Esta cita ya comenzó o pasó. No se puede confirmar ni cancelar.',
+              style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
+            ),
+          ),
+        if (!esFutura && estado == 'confirmada' && !puedeCompletar)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Esta cita ya comenzó. Podrás completarla cuando termine.',
+              style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // TARJETA DE CITA
+  // ============================================================
 
   Widget _construirTarjetaCita(Map<String, dynamic> cita) {
     final estado = cita['estado']?.toString() ?? 'desconocido';
@@ -299,11 +630,16 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
               '${_formatearHora(cita['fecha_inicio'])} - '
                   '${_formatearHora(cita['fecha_fin'])}',
             ),
+            _construirAcciones(cita),
           ],
         ),
       ),
     );
   }
+
+  // ============================================================
+  // CONTENIDO PRINCIPAL
+  // ============================================================
 
   Widget _construirContenido() {
     if (_cargando) {
@@ -367,6 +703,10 @@ class _AdministracionCitasScreenState extends State<AdministracionCitasScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // PANTALLA
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {

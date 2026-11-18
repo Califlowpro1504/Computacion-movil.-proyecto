@@ -15,6 +15,90 @@ class CitaRepository {
 
   static const String _tabla = 'citas';
 
+  static const int _margenMaximoMinutos = 10;
+
+  // ============================================================
+  // REGLA DE MÁRGENES
+  // ============================================================
+
+  static int margenMinutosParaDuracion(int duracion) {
+    if (duracion == 20 || duracion == 30) {
+      return 10;
+    }
+
+    if (duracion == 45 || duracion == 60) {
+      return 5;
+    }
+
+    // Para cualquier otro servicio:
+    // 10 minutos si dura hasta 30, 5 si dura más.
+    return duracion <= 30 ? 10 : 5;
+  }
+
+  // Obtiene los márgenes de las citas existentes.
+  // Se consulta la duración de cada servicio en Supabase.
+  Future<Map<String, int>> obtenerMargenesCitas(List<Cita> citas) async {
+    if (citas.isEmpty) {
+      return {};
+    }
+
+    final serviciosIds = citas.map((cita) => cita.servicioId).toSet().toList();
+
+    final servicios = await _client
+        .from('servicios')
+        .select('id, duracion_min')
+        .inFilter('id', serviciosIds);
+
+    final margenesPorServicio = <String, int>{};
+
+    for (final servicio in servicios) {
+      final id = servicio['id'].toString();
+      final duracion = (servicio['duracion_min'] as num?)?.toInt() ?? 0;
+
+      margenesPorServicio[id] = margenMinutosParaDuracion(duracion);
+    }
+
+    final resultado = <String, int>{};
+
+    for (final cita in citas) {
+      resultado[cita.id] = margenesPorServicio[cita.servicioId] ?? 10;
+    }
+
+    return resultado;
+  }
+
+  // Comprueba el espacio ocupado por la cita nueva y las existentes.
+  // El margen se aplica después de cada servicio.
+  static bool tieneCruceConMargen({
+    required DateTime inicio,
+    required DateTime fin,
+    required int duracionMinutos,
+    required List<Cita> citas,
+    required Map<String, int> margenesPorCita,
+  }) {
+    final margenNuevo = margenMinutosParaDuracion(duracionMinutos);
+
+    final finNuevoConMargen = fin.add(Duration(minutes: margenNuevo));
+
+    for (final cita in citas) {
+      final margenExistente = margenesPorCita[cita.id] ?? 10;
+
+      final finExistenteConMargen = cita.fechaFin.add(
+        Duration(minutes: margenExistente),
+      );
+
+      final seCruzan =
+          inicio.isBefore(finExistenteConMargen) &&
+          finNuevoConMargen.isAfter(cita.fechaInicio);
+
+      if (seCruzan) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Cita _fromMap(Map<String, dynamic> m) {
     return Cita(
       id: m['id'].toString(),
@@ -122,13 +206,23 @@ class CitaRepository {
 
     final finDia = inicioDia.add(const Duration(days: 1));
 
+    // Se amplía la consulta 10 minutos para considerar
+    // los márgenes de citas cercanas al cambio de día.
+    final inicioBusqueda = inicioDia.subtract(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
+    final finBusqueda = finDia.add(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
     final data = await _client
         .from(_tabla)
         .select()
         .eq('barbero_id', barberoId)
         .inFilter('estado', ['pendiente', 'confirmada'])
-        .lt('fecha_inicio', finDia.toUtc().toIso8601String())
-        .gt('fecha_fin', inicioDia.toUtc().toIso8601String())
+        .lt('fecha_inicio', finBusqueda.toUtc().toIso8601String())
+        .gt('fecha_fin', inicioBusqueda.toUtc().toIso8601String())
         .order('fecha_inicio');
 
     return data.map<Cita>(_fromMap).toList();
@@ -166,7 +260,8 @@ class CitaRepository {
 
     if (barbero == null) {
       throw Exception(
-        'El barbero no pertenece a esta barbería o no está disponible.',
+        'El barbero no pertenece a esta barbería '
+        'o no está disponible.',
       );
     }
 
@@ -188,7 +283,14 @@ class CitaRepository {
       throw Exception('El servicio tiene una duración no válida.');
     }
 
+    // La fecha final guardada solo incluye la duración real.
     final fin = inicio.add(Duration(minutes: duracion));
+
+    final margen = margenMinutosParaDuracion(duracion);
+
+    // Para validar el horario laboral se tiene en cuenta
+    // también el margen de preparación.
+    final bloqueTotal = duracion + margen;
 
     final horariosData = await _client
         .from('horarios')
@@ -209,28 +311,49 @@ class CitaRepository {
 
     final cabe = _disponibilidad.cabeEnHorario(
       inicio: inicio,
-      duracionMinutos: duracion,
+      duracionMinutos: bloqueTotal,
       horarios: horarios,
     );
 
     if (!cabe) {
       throw Exception(
-        'La cita no cabe dentro del horario laboral del barbero.',
+        'La cita y su margen no caben dentro '
+        'del horario laboral del barbero.',
       );
     }
+
+    // Buscar citas que puedan interferir con el bloque completo.
+    final inicioBusqueda = inicio.subtract(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
+    final finBusqueda = fin.add(Duration(minutes: margen));
 
     final ocupadas = await _client
         .from(_tabla)
         .select()
         .eq('barbero_id', barberoId)
         .inFilter('estado', ['pendiente', 'confirmada'])
-        .lt('fecha_inicio', fin.toUtc().toIso8601String())
-        .gt('fecha_fin', inicio.toUtc().toIso8601String());
+        .lt('fecha_inicio', finBusqueda.toUtc().toIso8601String())
+        .gt('fecha_fin', inicioBusqueda.toUtc().toIso8601String());
 
     final citas = ocupadas.map<Cita>(_fromMap).toList();
 
-    if (_disponibilidad.tieneCruce(inicio: inicio, fin: fin, citas: citas)) {
-      throw Exception('Ese horario ya está reservado. Elige otro.');
+    final margenesPorCita = await obtenerMargenesCitas(citas);
+
+    final tieneCruce = tieneCruceConMargen(
+      inicio: inicio,
+      fin: fin,
+      duracionMinutos: duracion,
+      citas: citas,
+      margenesPorCita: margenesPorCita,
+    );
+
+    if (tieneCruce) {
+      throw Exception(
+        'Ese horario no respeta el margen entre citas. '
+        'Elige otro horario.',
+      );
     }
 
     final data = await _client
@@ -303,6 +426,9 @@ class CitaRepository {
       throw Exception('La duración del servicio no es válida.');
     }
 
+    final margen = margenMinutosParaDuracion(duracion);
+    final bloqueTotal = duracion + margen;
+
     final dia = DateTime(fecha.year, fecha.month, fecha.day);
 
     final finDia = dia.add(const Duration(days: 1));
@@ -329,18 +455,28 @@ class CitaRepository {
       return [];
     }
 
+    final inicioBusqueda = dia.subtract(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
+    final finBusqueda = finDia.add(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
     final ocupadas = await _client
         .from(_tabla)
         .select()
         .eq('barbero_id', barberoId)
         .inFilter('estado', ['pendiente', 'confirmada'])
         .neq('id', citaId)
-        .lt('fecha_inicio', finDia.toUtc().toIso8601String())
-        .gt('fecha_fin', dia.toUtc().toIso8601String());
+        .lt('fecha_inicio', finBusqueda.toUtc().toIso8601String())
+        .gt('fecha_fin', inicioBusqueda.toUtc().toIso8601String());
 
     final citas = ocupadas.map<Cita>(_fromMap).toList();
 
-    final disponibles = <DateTime>[];
+    final margenesPorCita = await obtenerMargenesCitas(citas);
+
+    final disponibles = <DateTime>{};
     final ahora = DateTime.now();
 
     for (final horario in horarios) {
@@ -352,26 +488,28 @@ class CitaRepository {
 
       final horaFin = int.parse(partesFin[0]) * 60 + int.parse(partesFin[1]);
 
-      // Generar opciones cada 30 minutos.
+      // Los horarios se generan usando duración + margen.
       for (
         int minuto = horaInicio;
-        minuto + duracion <= horaFin;
-        minuto += 30
+        minuto + bloqueTotal <= horaFin;
+        minuto += bloqueTotal
       ) {
         final inicio = dia.add(
           Duration(hours: minuto ~/ 60, minutes: minuto % 60),
         );
 
-        final fin = inicio.add(Duration(minutes: duracion));
-
         if (!inicio.isAfter(ahora)) {
           continue;
         }
 
-        final tieneCruce = _disponibilidad.tieneCruce(
+        final fin = inicio.add(Duration(minutes: duracion));
+
+        final tieneCruce = tieneCruceConMargen(
           inicio: inicio,
           fin: fin,
+          duracionMinutos: duracion,
           citas: citas,
+          margenesPorCita: margenesPorCita,
         );
 
         if (!tieneCruce) {
@@ -380,9 +518,9 @@ class CitaRepository {
       }
     }
 
-    disponibles.sort();
+    final resultado = disponibles.toList()..sort();
 
-    return disponibles.toSet().toList();
+    return resultado;
   }
 
   // ============================================================
@@ -451,6 +589,9 @@ class CitaRepository {
       throw Exception('La duración del servicio no es válida.');
     }
 
+    final margen = margenMinutosParaDuracion(duracion);
+    final bloqueTotal = duracion + margen;
+
     final fin = inicio.add(Duration(minutes: duracion));
 
     final horariosData = await _client
@@ -472,15 +613,22 @@ class CitaRepository {
 
     final cabe = _disponibilidad.cabeEnHorario(
       inicio: inicio,
-      duracionMinutos: duracion,
+      duracionMinutos: bloqueTotal,
       horarios: horarios,
     );
 
     if (!cabe) {
       throw Exception(
-        'El nuevo horario no está dentro de la jornada del barbero.',
+        'El nuevo horario y su margen no están '
+        'dentro de la jornada del barbero.',
       );
     }
+
+    final inicioBusqueda = inicio.subtract(
+      const Duration(minutes: _margenMaximoMinutos),
+    );
+
+    final finBusqueda = fin.add(Duration(minutes: margen));
 
     final ocupadas = await _client
         .from(_tabla)
@@ -488,13 +636,26 @@ class CitaRepository {
         .eq('barbero_id', barberoId)
         .inFilter('estado', ['pendiente', 'confirmada'])
         .neq('id', citaId)
-        .lt('fecha_inicio', fin.toUtc().toIso8601String())
-        .gt('fecha_fin', inicio.toUtc().toIso8601String());
+        .lt('fecha_inicio', finBusqueda.toUtc().toIso8601String())
+        .gt('fecha_fin', inicioBusqueda.toUtc().toIso8601String());
 
     final citas = ocupadas.map<Cita>(_fromMap).toList();
 
-    if (_disponibilidad.tieneCruce(inicio: inicio, fin: fin, citas: citas)) {
-      throw Exception('Ese horario ya está reservado. Elige otro.');
+    final margenesPorCita = await obtenerMargenesCitas(citas);
+
+    final tieneCruce = tieneCruceConMargen(
+      inicio: inicio,
+      fin: fin,
+      duracionMinutos: duracion,
+      citas: citas,
+      margenesPorCita: margenesPorCita,
+    );
+
+    if (tieneCruce) {
+      throw Exception(
+        'Ese horario no respeta el margen entre citas. '
+        'Elige otro.',
+      );
     }
 
     final resultado = await _client
@@ -511,7 +672,8 @@ class CitaRepository {
 
     if (resultado.isEmpty) {
       throw Exception(
-        'No se pudo reprogramar. La cita pudo cambiar de estado o fecha.',
+        'No se pudo reprogramar. La cita pudo cambiar '
+        'de estado o fecha.',
       );
     }
   }
@@ -562,8 +724,36 @@ class CitaRepository {
 
     if (resultado.isEmpty) {
       throw Exception(
-        'No se pudo cancelar. La cita pudo cambiar de estado o fecha.',
+        'No se pudo cancelar. La cita pudo cambiar '
+        'de estado o fecha.',
       );
     }
+  }
+
+  // ============================================================
+  // GESTIONAR ESTADO DE UNA CITA
+  // ADMINISTRADOR GENERAL Y PROPIETARIO
+  // ============================================================
+
+  Future<void> gestionarEstado({
+    required String citaId,
+    required String nuevoEstado,
+  }) async {
+    final usuario = _client.auth.currentUser;
+
+    if (usuario == null) {
+      throw Exception('Debes iniciar sesión para gestionar las citas.');
+    }
+
+    const estadosPermitidos = ['confirmada', 'cancelada', 'completada'];
+
+    if (!estadosPermitidos.contains(nuevoEstado)) {
+      throw Exception('El estado solicitado no es válido.');
+    }
+
+    await _client.rpc(
+      'gestionar_estado_cita',
+      params: {'p_cita_id': citaId, 'p_nuevo_estado': nuevoEstado},
+    );
   }
 }

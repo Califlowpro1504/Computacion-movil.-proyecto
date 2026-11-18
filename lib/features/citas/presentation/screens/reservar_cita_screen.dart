@@ -26,8 +26,6 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
   final _citaRepository = CitaRepository();
   final _disponibilidad = const DisponibilidadCitas();
 
-  static const int _intervaloMinutos = 45;
-
   List<Barberia> _barberias = [];
   List<Barbero> _barberos = [];
   List<Servicio> _servicios = [];
@@ -36,7 +34,6 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
   Barbero? _barberoSeleccionado;
   Servicio? _servicioSeleccionado;
 
-  // Los selectores usan identificadores únicos, no objetos completos.
   String? _barberiaSeleccionadaId;
   String? _barberoSeleccionadoId;
   String? _servicioSeleccionadoId;
@@ -180,50 +177,89 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
         fecha: fecha,
       );
 
+      // Se consultan los márgenes de las citas existentes una sola vez.
+      final margenesPorCita = await _citaRepository.obtenerMargenesCitas(citas);
+
       if (!mounted) return;
 
-      final opciones = <TimeOfDay>[];
+      final opciones = <DateTime>{};
       final ahora = DateTime.now();
 
-      // Genera opciones en intervalos de 45 minutos.
-      // Se conservan la duración del servicio y las validaciones existentes.
-      for (var minuto = 0; minuto < 24 * 60; minuto += _intervaloMinutos) {
-        final hora = minuto ~/ 60;
-        final minutoHora = minuto % 60;
+      final duracion = servicio.duracionMin;
 
-        final inicio = DateTime(
-          fecha.year,
-          fecha.month,
-          fecha.day,
-          hora,
-          minutoHora,
+      if (duracion <= 0) {
+        throw Exception(
+          'El servicio seleccionado no tiene una duración válida.',
         );
+      }
 
-        if (!inicio.isAfter(ahora)) continue;
+      // Margen según la duración del servicio.
+      final margen = CitaRepository.margenMinutosParaDuracion(duracion);
 
-        final cabe = _disponibilidad.cabeEnHorario(
-          inicio: inicio,
-          duracionMinutos: servicio.duracionMin,
-          horarios: horarios,
-        );
+      // Tiempo total que debe reservarse en la agenda.
+      final bloqueTotal = duracion + margen;
 
-        if (!cabe) continue;
+      // Generar horarios desde el inicio de cada jornada laboral.
+      for (final horario in horarios.where(
+        (h) => h.dia == fecha.weekday && h.activo,
+      )) {
+        final partesInicio = horario.horaInicio.split(':');
+        final partesFin = horario.horaFin.split(':');
 
-        final fin = inicio.add(Duration(minutes: servicio.duracionMin));
+        final horaInicio =
+            int.parse(partesInicio[0]) * 60 + int.parse(partesInicio[1]);
 
-        final cruza = _disponibilidad.tieneCruce(
-          inicio: inicio,
-          fin: fin,
-          citas: citas,
-        );
+        final horaFin = int.parse(partesFin[0]) * 60 + int.parse(partesFin[1]);
 
-        if (!cruza) {
-          opciones.add(TimeOfDay(hour: hora, minute: minutoHora));
+        for (
+          int minuto = horaInicio;
+          minuto + bloqueTotal <= horaFin;
+          minuto += bloqueTotal
+        ) {
+          final inicio = DateTime(
+            fecha.year,
+            fecha.month,
+            fecha.day,
+            minuto ~/ 60,
+            minuto % 60,
+          );
+
+          if (!inicio.isAfter(ahora)) continue;
+
+          // Comprueba que servicio + margen quepan en la jornada.
+          final cabe = _disponibilidad.cabeEnHorario(
+            inicio: inicio,
+            duracionMinutos: bloqueTotal,
+            horarios: horarios,
+          );
+
+          if (!cabe) continue;
+
+          // La fecha final real NO incluye el margen.
+          final fin = inicio.add(Duration(minutes: duracion));
+
+          final cruza = CitaRepository.tieneCruceConMargen(
+            inicio: inicio,
+            fin: fin,
+            duracionMinutos: duracion,
+            citas: citas,
+            margenesPorCita: margenesPorCita,
+          );
+
+          if (!cruza) {
+            opciones.add(inicio);
+          }
         }
       }
 
+      final listaOrdenada = opciones.toList()..sort();
+
+      if (!mounted) return;
+
       setState(() {
-        _horasDisponibles = opciones;
+        _horasDisponibles = listaOrdenada
+            .map((fechaHora) => TimeOfDay.fromDateTime(fechaHora))
+            .toList();
         _cargandoHoras = false;
       });
     } catch (e) {
@@ -349,7 +385,8 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
       if (!mounted) return;
 
       _mostrarMensaje(
-        'No se pudo reservar la cita. Verifica la disponibilidad e inténtalo de nuevo.',
+        'No se pudo reservar la cita. '
+        'Verifica la disponibilidad e inténtalo de nuevo.',
       );
 
       await _actualizarHorasDisponibles();
@@ -400,8 +437,6 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
   }
 
   Widget _construirFormulario() {
-    // El valor de cada dropdown siempre debe coincidir con
-    // exactamente un elemento de su lista.
     final barberiaIdValido = _barberias.any(
       (b) => b.id == _barberiaSeleccionadaId,
     );
@@ -414,6 +449,12 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
       (s) => s.id == _servicioSeleccionadoId,
     );
 
+    final margenServicio = _servicioSeleccionado == null
+        ? null
+        : CitaRepository.margenMinutosParaDuracion(
+            _servicioSeleccionado!.duracionMin,
+          );
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -425,7 +466,6 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
         const Text('Selecciona tu barbería, el profesional y el servicio.'),
         const SizedBox(height: 24),
 
-        // Selector de barbería.
         DropdownButtonFormField<String>(
           key: ValueKey('barberia_$_barberiaSeleccionadaId'),
           isExpanded: true,
@@ -477,10 +517,10 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
 
         const SizedBox(height: 16),
 
-        // Selector de barbero: usa el ID como valor único.
         DropdownButtonFormField<String>(
           key: ValueKey(
-            'barbero_${_barberiaSeleccionadaId}_$_barberoSeleccionadoId',
+            'barbero_${_barberiaSeleccionadaId}_'
+            '$_barberoSeleccionadoId',
           ),
           isExpanded: true,
           initialValue: barberoIdValido ? _barberoSeleccionadoId : null,
@@ -524,10 +564,10 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
 
         const SizedBox(height: 16),
 
-        // Selector de servicio.
         DropdownButtonFormField<String>(
           key: ValueKey(
-            'servicio_${_barberiaSeleccionadaId}_$_servicioSeleccionadoId',
+            'servicio_${_barberiaSeleccionadaId}_'
+            '$_servicioSeleccionadoId',
           ),
           isExpanded: true,
           initialValue: servicioIdValido ? _servicioSeleccionadoId : null,
@@ -541,7 +581,8 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
                 (s) => DropdownMenuItem<String>(
                   value: s.id,
                   child: Text(
-                    '${s.nombre} · ${s.duracionMin} min · \$${s.precio.toStringAsFixed(0)}',
+                    '${s.nombre} · ${s.duracionMin} min · '
+                    '\$${s.precio.toStringAsFixed(0)}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -600,6 +641,16 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
           ),
         ),
 
+        if (margenServicio != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Margen entre citas para este servicio: '
+              '$margenServicio minutos.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+
         if (_fechaSeleccionada != null &&
             _barberoSeleccionado != null &&
             _servicioSeleccionado != null &&
@@ -609,7 +660,8 @@ class _ReservarCitaScreenState extends State<ReservarCitaScreen> {
             child: Text(
               _horasDisponibles.isEmpty
                   ? 'No hay horas disponibles para esta selección.'
-                  : '${_horasDisponibles.length} opciones disponibles cada 45 minutos.',
+                  : 'Se muestran horarios que respetan la duración '
+                        'del servicio y el margen de preparación.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
