@@ -1,13 +1,14 @@
 class AppUser {
-  final String id; // uid de Firebase Auth
+  final String id;
   final String nombre;
   final String apellido;
   final String correo;
   final String telefono;
-  final String rol; // 'cliente', 'comercio', 'admin'
+  final String rol;
   final bool terminosAceptados;
   final DateTime fechaRegistro;
-  final bool activo; // para RF-031: admin puede activar/suspender
+  final bool activo;
+  final bool esAdmin;
 
   const AppUser({
     required this.id,
@@ -19,5 +20,6 @@ class AppUser {
     required this.terminosAceptados,
     required this.fechaRegistro,
     this.activo = true,
+    this.esAdmin = false,
   });
 }

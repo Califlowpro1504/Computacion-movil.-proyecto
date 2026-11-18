@@ -1,9 +1,37 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
+
+  AppUser _crearAppUser(Map<String, dynamic> data, String correo) {
+    return AppUser(
+      id: data['id'] as String,
+      nombre: data['nombre'] as String,
+      apellido: data['apellido'] as String,
+      correo: correo,
+      telefono: data['telefono'] as String,
+      rol: data['rol'] as String,
+      terminosAceptados: data['terminos_aceptados'] as bool,
+      fechaRegistro:
+          DateTime.tryParse(data['fecha_registro']?.toString() ?? '') ??
+          DateTime.now(),
+      activo: data['activo'] as bool? ?? true,
+      esAdmin: data['es_admin'] as bool? ?? false,
+    );
+  }
+
+  Future<AppUser> _obtenerPerfil(String userId, String correo) async {
+    final data = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .single();
+
+    return _crearAppUser(data, correo);
+  }
 
   @override
   Future<AppUser> register({
@@ -15,30 +43,27 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final response = await _client.auth.signUp(
-        email: correo,
+        email: correo.trim(),
         password: password,
+        data: {
+          'nombre': nombre.trim(),
+          'apellido': apellido.trim(),
+          'telefono': telefono.trim(),
+        },
       );
 
-      final userId = response.user?.id;
-      if (userId == null) {
+      final user = response.user;
+
+      if (user == null) {
         throw Exception('No se pudo crear la cuenta.');
       }
 
-      await _client.from('profiles').insert({
-        'id': userId,
-        'nombre': nombre,
-        'apellido': apellido,
-        'telefono': telefono,
-        'rol': 'cliente',
-        'terminos_aceptados': true,
-      });
-
       return AppUser(
-        id: userId,
-        nombre: nombre,
-        apellido: apellido,
-        correo: correo,
-        telefono: telefono,
+        id: user.id,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        correo: correo.trim(),
+        telefono: telefono.trim(),
         rol: 'cliente',
         terminosAceptados: true,
         fechaRegistro: DateTime.now(),
@@ -48,6 +73,7 @@ class AuthRepositoryImpl implements AuthRepository {
           e.message.toLowerCase().contains('already exists')) {
         throw Exception('Este correo ya se encuentra registrado.');
       }
+
       throw Exception(e.message);
     }
   }
@@ -59,34 +85,31 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final response = await _client.auth.signInWithPassword(
-        email: correo,
+        email: correo.trim(),
         password: password,
       );
 
-      final userId = response.user?.id;
-      if (userId == null) {
+      final user = response.user;
+
+      if (user == null) {
         throw Exception('No se pudo iniciar sesión.');
       }
 
-      final data = await _client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
+      final perfil = await _obtenerPerfil(user.id, user.email ?? correo.trim());
 
-      return AppUser(
-        id: userId,
-        nombre: data['nombre'],
-        apellido: data['apellido'],
-        correo: correo,
-        telefono: data['telefono'],
-        rol: data['rol'],
-        terminosAceptados: data['terminos_aceptados'],
-        fechaRegistro: DateTime.parse(data['fecha_registro']),
-        activo: data['activo'],
-      );
-    } on AuthException catch (_) {
+      if (!perfil.activo) {
+        await _client.auth.signOut(scope: SignOutScope.local);
+        throw Exception('Esta cuenta se encuentra desactivada.');
+      }
+
+      return perfil;
+    } on AuthException {
       throw Exception('Correo o contraseña incorrectos.');
+    } on PostgrestException {
+      await _client.auth.signOut(scope: SignOutScope.local);
+      throw Exception(
+        'No se pudo consultar tu perfil. Contacta con el administrador.',
+      );
     }
   }
 
@@ -96,9 +119,25 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  AppUser? get usuarioActual {
+  Future<AppUser?> get usuarioActual async {
     final user = _client.auth.currentUser;
-    if (user == null) return null;
-    return null;
+
+    if (user == null) {
+      return null;
+    }
+
+    try {
+      final perfil = await _obtenerPerfil(user.id, user.email ?? '');
+
+      if (!perfil.activo) {
+        await _client.auth.signOut(scope: SignOutScope.local);
+        return null;
+      }
+
+      return perfil;
+    } on PostgrestException {
+      await _client.auth.signOut(scope: SignOutScope.local);
+      return null;
+    }
   }
 }
