@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/product_service.dart';
+import '../../cart/screens/cart_screen.dart';
 import '../../cart/services/cart_service.dart';
 
 class ProductsScreen extends StatelessWidget {
   const ProductsScreen({super.key});
 
-  Future<void> _addToCart(
+  Future<bool> _addToCart(
       BuildContext context, Map<String, dynamic> product) async {
     final messenger = ScaffoldMessenger.of(context);
 
@@ -16,7 +17,7 @@ class ProductsScreen extends StatelessWidget {
           content: Text('Inicia sesión para agregar productos al carrito'),
         ),
       );
-      return;
+      return false;
     }
 
     try {
@@ -24,11 +25,23 @@ class ProductsScreen extends StatelessWidget {
       messenger.showSnackBar(
         SnackBar(content: Text('${product['name']} agregado al carrito')),
       );
+      return true;
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('No se pudo agregar: $e')),
       );
+      return false;
     }
+  }
+
+  Future<void> _buyNow(
+      BuildContext context, Map<String, dynamic> product) async {
+    final added = await _addToCart(context, product);
+    if (!added || !context.mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CartScreen()),
+    );
   }
 
   @override
@@ -43,7 +56,7 @@ class ProductsScreen extends StatelessWidget {
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
-          }
+          } 
           final products = snapshot.data ?? [];
           if (products.isEmpty) {
             return const Center(child: Text('No hay productos'));
@@ -65,10 +78,11 @@ class ProductsScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('\$$price'),
-                    IconButton(
-                      icon: const Icon(Icons.add_shopping_cart),
-                      onPressed:
-                          stock > 0 ? () => _addToCart(context, p) : null,
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.shopping_cart_checkout),
+                      label: const Text('Comprar'),
+                      onPressed: stock > 0 ? () => _buyNow(context, p) : null,
                     ),
                   ],
                 ),
@@ -77,6 +91,3 @@ class ProductsScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
