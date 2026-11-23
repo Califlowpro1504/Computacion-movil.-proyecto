@@ -25,4 +25,41 @@ class ProfileService {
 
     return {...profile, 'correo': user.email ?? ''};
   }
+
+  Future<void> actualizarMisDatos({
+    required String nombre,
+    required String apellido,
+    required String telefono,
+  }) async {
+    final user = _client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No hay una sesión iniciada.');
+    }
+
+    final cleanNombre = nombre.trim();
+    final cleanApellido = apellido.trim();
+    final cleanTelefono = telefono.trim();
+
+    if (cleanNombre.isEmpty ||
+        cleanApellido.isEmpty ||
+        !RegExp(r'^[0-9]{7,15}$').hasMatch(cleanTelefono)) {
+      throw ArgumentError('Los datos del perfil no son válidos.');
+    }
+
+    final updated = await _client
+        .from('profiles')
+        .update({
+          'nombre': cleanNombre,
+          'apellido': cleanApellido,
+          'telefono': cleanTelefono,
+        })
+        .eq('id', user.id)
+        .select('id')
+        .maybeSingle();
+
+    if (updated == null) {
+      throw StateError('No se pudo actualizar el perfil.');
+    }
+  }
 }
