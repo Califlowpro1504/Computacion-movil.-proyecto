@@ -700,36 +700,8 @@ class CitaRepository {
       throw Exception('No se encontró la cita o no tienes permiso.');
     }
 
-    final estado = cita['estado'].toString();
-
-    final fechaInicio = DateTime.parse(cita['fecha_inicio'].toString())
-        .toLocal();
-
-    if (estado != 'pendiente' && estado != 'confirmada') {
-      throw Exception('Esta cita ya no se puede cancelar.');
-    }
-
-    if (!fechaInicio.isAfter(DateTime.now())) {
-      throw Exception('No puedes cancelar una cita que ya comenzó.');
-    }
-
-    final resultado = await _client
-        .from(_tabla)
-        .update({'estado': 'cancelada'})
-        .eq('id', citaId)
-        .eq('user_id', usuario.id)
-        .inFilter('estado', ['pendiente', 'confirmada'])
-        .gt('fecha_inicio', DateTime.now().toUtc().toIso8601String())
-        .select('id');
-
-    if (resultado.isEmpty) {
-      throw Exception(
-        'No se pudo cancelar. La cita pudo cambiar '
-        'de estado o fecha.',
-      );
-    }
+    await _client.rpc('cancelar_mi_cita', params: {'p_cita_id': citaId});
   }
-
   // ============================================================
   // GESTIONAR ESTADO DE UNA CITA
   // ADMINISTRADOR GENERAL Y PROPIETARIO
