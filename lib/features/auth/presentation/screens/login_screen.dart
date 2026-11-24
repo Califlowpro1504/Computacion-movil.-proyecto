@@ -60,11 +60,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final rolActual = perfil.rol.trim().toLowerCase();
 
+      final esAdministrador = rolActual == 'admin' || perfil.esAdmin;
+
       final tienePermiso = switch (widget.accessRole) {
         AccessRole.cliente => rolActual == 'cliente',
-        AccessRole.propietario => rolActual == 'propietario',
+
+        AccessRole.propietario => rolActual == 'propietario' || esAdministrador,
+
         AccessRole.barbero => rolActual == 'barbero',
-        AccessRole.administrador => rolActual == 'admin' || perfil.esAdmin,
+
+        AccessRole.administrador => esAdministrador,
       };
 
       if (!tienePermiso) {

@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../barberias/presentation/screens/barberias_screen.dart';
-import '../../../barberias/presentation/screens/panel_propietario_screen.dart';
 import '../../../citas/presentation/screens/reservar_cita_screen.dart';
 import '../../../citas/presentation/screens/mis_citas_screen.dart';
 import '../../../cart/screens/cart_screen.dart';
 import '../../../orders/screens/orders_screen.dart';
 import '../../../notifications/screens/notifications_screen.dart';
 import '../../../products/screens/products_screen.dart';
-import '../../../products/screens/inventory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-    required this.email,
-    required this.onSignOut,
-  });
+  const HomeScreen({super.key, required this.email, required this.onSignOut});
 
   final String? email;
   final Future<void> Function() onSignOut;
@@ -30,9 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
 
   Future<void> _openPage(Widget page) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => page),
-    );
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _signOut() async {
@@ -121,11 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.content_cut,
-                color: Colors.white,
-                size: 38,
-              ),
+              const Icon(Icons.content_cut, color: Colors.white, size: 38),
               const SizedBox(height: 14),
               const Text(
                 '¡Bienvenido a CUT & GO!',
@@ -168,10 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => _openPage(const MisCitasScreen()),
         ),
         const SizedBox(height: 20),
-        Text(
-          'Tienda y pedidos',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        Text('Tienda y pedidos', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         _ActionTile(
           icon: Icons.shopping_bag_outlined,
@@ -205,10 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const CircleAvatar(
-          radius: 38,
-          child: Icon(Icons.person, size: 40),
-        ),
+        const CircleAvatar(radius: 38, child: Icon(Icons.person, size: 40)),
         const SizedBox(height: 14),
         Text(
           'Mi cuenta',
@@ -221,30 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 28),
-        Text(
-          'Administración del comercio',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 12),
-        _ActionTile(
-          icon: Icons.store,
-          title: 'Panel de propietario',
-          subtitle: 'Administra tus barberías y servicios',
-          onTap: () => _openPage(const PanelPropietarioScreen()),
-        ),
-        _ActionTile(
-          icon: Icons.inventory_2_outlined,
-          title: 'Inventario',
-          subtitle: 'Administra los productos de tu comercio',
-          onTap: () => _openPage(const InventoryScreen()),
-        ),
-        const SizedBox(height: 20),
         if (_error != null) ...[
           Text(
             _error!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            ),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
           const SizedBox(height: 12),
         ],
@@ -257,9 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.logout),
-          label: Text(
-            _signingOut ? 'Cerrando sesión...' : 'Cerrar sesión',
-          ),
+          label: Text(_signingOut ? 'Cerrando sesión...' : 'Cerrar sesión'),
         ),
       ],
     );
@@ -284,13 +244,8 @@ class _ActionTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: CircleAvatar(
-          child: Icon(icon),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        leading: CircleAvatar(child: Icon(icon)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
