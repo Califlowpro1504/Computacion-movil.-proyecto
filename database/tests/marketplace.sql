@@ -84,6 +84,13 @@ begin
   assert (select count(*) from public.solicitudes_comercio) = 2;
   assert (select count(*) from public.buscar_comercios(consulta => 'Tienda')) = 0;
   begin
+    insert into public.solicitudes_comercio
+    (nombre, descripcion, direccion, telefono, categoria, zona, tipo, horario)
+    values ('tienda UNO', 'Duplicada', 'Calle 5', '3001234567', 'Belleza', 'Centro', 'Tienda', 'Lunes');
+    raise exception 'Se permitió duplicar una solicitud pendiente';
+  exception when unique_violation then null;
+  end;
+  begin
     update public.solicitudes_comercio set estado = 'aprobada';
     raise exception 'Se permitió una transición directa';
   exception when insufficient_privilege then null;
@@ -127,6 +134,20 @@ do $$ begin
   exception when object_not_in_prerequisite_state then null;
   end;
   assert (select count(*) from public.solicitudes_comercio where revisada_en is not null) = 2;
+end $$;
+
+set request.jwt.claim.sub = '00000000-0000-0000-0000-000000000002';
+do $$ begin
+  assert (select count(*) from public.buscar_comercios(consulta => 'Tienda')) = 1;
+  assert (select count(*) from public.solicitudes_comercio) = 0;
+  begin
+    perform public.actualizar_comercio_propio(
+      current_setting('test.solicitud')::uuid,
+      '{"nombre":"Ajeno","descripcion":"Descripción","direccion":"Calle 4","telefono":"3001234567","categoria":"Belleza","zona":"Centro","tipo":"Tienda","horario":"Lunes","visible":false,"version":0}'
+    );
+    raise exception 'Se permitió editar un comercio aprobado de otro propietario';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 set request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
