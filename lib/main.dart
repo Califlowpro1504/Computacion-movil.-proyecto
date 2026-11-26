@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/screens/session_gate.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/auth/presentation/screens/role_selection_screen.dart';
+import 'features/auth/data/services/auth_profile_service.dart';
+import 'features/auth/presentation/screens/profile_access_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +29,7 @@ class _MyAppState extends State<MyApp> {
   AccessRole? _selectedAccessRole;
 
   final _auth = Supabase.instance.client.auth;
+  final _profileService = AuthProfileService();
   late final Stream<bool> _sessionChanges = _auth.onAuthStateChange
       .map((event) => event.session != null)
       .distinct();
@@ -58,9 +62,16 @@ class _MyAppState extends State<MyApp> {
             },
           );
         },
-        signedInBuilder: (_) => HomeScreen(
-          email: _auth.currentUser?.email,
+        signedInBuilder: (_) => ProfileAccessGate(
+          key: ValueKey(_auth.currentUser?.id),
+          userId: _auth.currentUser?.id,
+          selectedRole: _selectedAccessRole,
+          loadProfile: _profileService.obtenerPerfilDeAcceso,
           onSignOut: () => _auth.signOut(scope: SignOutScope.local),
+          authorizedBuilder: (_) => HomeScreen(
+            email: _auth.currentUser?.email,
+            onSignOut: () => _auth.signOut(scope: SignOutScope.local),
+          ),
         ),
       ),
     );
