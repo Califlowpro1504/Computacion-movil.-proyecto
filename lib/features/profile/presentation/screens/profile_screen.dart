@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../data/services/profile_service.dart';
+import '../../../auth/presentation/validators/auth_validators.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.loadProfile});
+  const ProfileScreen({
+    super.key,
+    this.loadProfile,
+    this.saveProfile,
+    this.requestEmailChange,
+  });
+
+  final Future<void> Function(String, String, String)? saveProfile;
+  final Future<void> Function(String)? requestEmailChange;
 
   final Future<Map<String, dynamic>?> Function()? loadProfile;
 
@@ -34,6 +44,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _profileFuture = _loadProfile();
     });
+  }
+
+  Future<void> _edit(Map<String, dynamic> profile) async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          profile: profile,
+          saveProfile: widget.saveProfile,
+        ),
+      ),
+    );
+    if (mounted && updated == true) _retry();
+  }
+
+  Future<void> _changeEmail(String current) async {
+    final form = GlobalKey<FormState>();
+    var email = '';
+    var saving = false;
+    String? error;
+    final sent = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (dialog, update) => PopScope(
+          canPop: !saving,
+          child: AlertDialog(
+            title: const Text('Cambiar correo'),
+            scrollable: true,
+            content: Form(
+              key: form,
+              child: TextFormField(
+                enabled: !saving,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Nuevo correo',
+                  errorText: error,
+                ),
+                onChanged: (value) {
+                  email = value.trim();
+                  if (error != null) update(() => error = null);
+                },
+                validator: (value) =>
+                    AuthValidators.validarCorreo(value) ??
+                    (email.toLowerCase() == current.toLowerCase()
+                        ? 'Ingresa un correo diferente.'
+                        : null),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialog),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!form.currentState!.validate()) return;
+                        update(() => saving = true);
+                        try {
+                          final request =
+                              widget.requestEmailChange ??
+                              ProfileService().solicitarCambioCorreo;
+                          await request(email);
+                          if (dialog.mounted) Navigator.pop(dialog, true);
+                        } catch (_) {
+                          if (dialog.mounted) {
+                            update(() {
+                              saving = false;
+                              error = 'No pudimos solicitar el cambio.';
+                            });
+                          }
+                        }
+                      },
+                child: Text(saving ? 'Enviando…' : 'Enviar confirmación'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mounted && sent == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Revisa tu correo actual y el nuevo para confirmar el cambio.',
+          ),
+        ),
+      );
+    }
   }
 
   Widget _message(String message) {
@@ -124,6 +224,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _ProfileField(
                       label: 'Teléfono',
                       value: profile['telefono'],
+                    ),
+                    FilledButton(
+                      onPressed: () => _edit(profile),
+                      child: const Text('Editar perfil'),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          _changeEmail(profile['correo'] as String? ?? ''),
+                      child: const Text('Cambiar correo'),
                     ),
                   ],
                 ),

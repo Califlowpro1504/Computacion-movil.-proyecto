@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../commerce_management/presentation/commerce_requests_screen.dart';
+import '../../../marketplace/data/marketplace_service.dart';
+import '../../../marketplace/presentation/marketplace_catalog.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.email, required this.onSignOut});
+  const HomeScreen({
+    super.key,
+    required this.email,
+    required this.onSignOut,
+    this.marketplace,
+  });
 
+  final MarketplaceService? marketplace;
   final String? email;
   final Future<void> Function() onSignOut;
 
@@ -113,93 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 22),
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.border),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF263C46), AppTheme.surface],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.content_cut, size: 36, color: AppTheme.accent),
-              const SizedBox(height: 24),
-              const Text(
-                'Tu estilo.\nTu comunidad.',
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  fontSize: 32,
-                  height: 1.15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.ivory,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Comercios, productos y experiencias\nen un solo lugar.',
-                style: TextStyle(color: AppTheme.muted, height: 1.6),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: const [
-                  _Tag(
-                    icon: Icons.auto_awesome_outlined,
-                    label: 'Estilo propio',
-                  ),
-                  _Tag(icon: Icons.storefront_outlined, label: 'Talento local'),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        const Text(
-          'Un mundo por descubrir',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Próximamente en CUT & GO',
-          style: TextStyle(color: AppTheme.muted, fontSize: 13),
-        ),
-        const SizedBox(height: 16),
-        const Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _Tag(icon: Icons.content_cut, label: 'Barberías'),
-            _Tag(icon: Icons.spa_outlined, label: 'Belleza'),
-            _Tag(icon: Icons.shopping_bag_outlined, label: 'Tiendas'),
-            _Tag(icon: Icons.handyman_outlined, label: 'Servicios'),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const _Surface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.storefront_outlined, color: AppTheme.accent, size: 28),
-              SizedBox(height: 12),
-              Text(
-                'Estamos preparando el catálogo',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Aquí descubrirás comercios y sus novedades cuando estén disponibles.',
-                style: TextStyle(color: AppTheme.muted, height: 1.6),
-              ),
-            ],
-          ),
-        ),
+        if (widget.marketplace case final service?)
+          MarketplaceCatalog(service: service),
         const SizedBox(height: 24),
         const Row(
           children: [
@@ -244,6 +168,16 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.person_outline),
           label: const Text('Ver mi perfil'),
         ),
+        if (widget.marketplace case final service?)
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => CommerceRequestsScreen(service: service),
+              ),
+            ),
+            icon: const Icon(Icons.storefront_outlined),
+            label: const Text('Mis comercios'),
+          ),
         const SizedBox(height: 24),
         _Surface(
           child: Column(
@@ -301,37 +235,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.elevated,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppTheme.accent),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: AppTheme.ivory),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -41,6 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _registrar() async {
+    if (_cargando) return;
     setState(() => _errorTerminos = AuthValidators.validarTerminos(_terminosAceptados));
 
     final formValido = _formKey.currentState!.validate();
@@ -59,13 +60,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tu cuenta ha sido creada correctamente.')),
+        const SnackBar(
+          content: Text('Si debes confirmar tu registro, recibirás un enlace por correo.'),
+        ),
       );
       Navigator.of(context).pop(); // vuelve al login
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        const SnackBar(
+          content: Text('No pudimos completar el registro. Revisa los datos e inténtalo de nuevo.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _cargando = false);

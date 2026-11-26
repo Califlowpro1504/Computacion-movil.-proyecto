@@ -15,10 +15,13 @@ class AuthProfileService {
 
     final profile = await _client
         .from('profiles')
-        .select('id, rol, activo')
+        .select()
         .eq('id', user.id)
         .maybeSingle();
 
-    return profile;
+    if (profile == null) return null;
+    return {
+      for (final key in ['id', 'rol', 'activo', 'es_admin']) key: profile[key],
+    };
   }
 }

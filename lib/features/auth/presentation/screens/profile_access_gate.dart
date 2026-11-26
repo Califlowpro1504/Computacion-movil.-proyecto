@@ -11,6 +11,7 @@ class ProfileAccessGate extends StatefulWidget {
     required this.loadProfile,
     required this.onSignOut,
     required this.authorizedBuilder,
+    this.adminBuilder,
   });
 
   final String? userId;
@@ -18,6 +19,7 @@ class ProfileAccessGate extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function() loadProfile;
   final Future<void> Function() onSignOut;
   final WidgetBuilder authorizedBuilder;
+  final WidgetBuilder? adminBuilder;
 
   @override
   State<ProfileAccessGate> createState() => _ProfileAccessGateState();
@@ -73,7 +75,14 @@ class _ProfileAccessGateState extends State<ProfileAccessGate> {
       return 'Tu cuenta no está activa. Contacta al administrador.';
     }
 
-    if (profile['rol'] != 'cliente') {
+    if (_isAdmin(profile) &&
+        widget.adminBuilder != null &&
+        (widget.selectedRole == null ||
+            widget.selectedRole == AccessRole.administrador)) {
+      return null;
+    }
+
+    if (profile['rol'] != 'cliente' && profile['rol'] != 'comercio') {
       return 'Este rol todavía no tiene un acceso configurado.';
     }
 
@@ -84,6 +93,9 @@ class _ProfileAccessGateState extends State<ProfileAccessGate> {
 
     return null;
   }
+
+  bool _isAdmin(Map<String, dynamic>? profile) =>
+      profile?['rol'] == 'admin' || profile?['es_admin'] == true;
 
   Widget _blocked(String message) {
     return Scaffold(
@@ -140,6 +152,13 @@ class _ProfileAccessGateState extends State<ProfileAccessGate> {
           return _blocked(error);
         }
 
+        final adminBuilder = widget.adminBuilder;
+        if (adminBuilder != null &&
+            _isAdmin(snapshot.data) &&
+            widget.selectedRole != AccessRole.cliente &&
+            widget.selectedRole != AccessRole.barbero) {
+          return adminBuilder(context);
+        }
         return widget.authorizedBuilder(context);
       },
     );

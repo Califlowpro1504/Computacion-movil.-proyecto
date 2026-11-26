@@ -10,7 +10,7 @@
 - Bloquear envíos repetidos durante el guardado.
 - Actualizar la consulta del perfil después de guardar.
 
-El formulario no modifica correo, rol ni estado activo.
+El formulario de edición actualiza los datos personales. El botón **Cambiar correo** solicita confirmación mediante Supabase Auth. El rol y el estado se administran en el servidor.
 El servicio utiliza la identidad autenticada en Supabase.
 La autorización de los datos depende también de las políticas RLS.
 
@@ -29,6 +29,4 @@ Utilizan datos simulados y no comprueban las políticas RLS.
 4. Cambiarlo y guardar: debe mostrarse actualizado.
 5. Recargar la aplicación: el cambio debe permanecer.
 
-## Pendiente
-
-Implementar el cambio de correo con confirmación mediante Supabase Auth.
+6. Solicitar el cambio de correo y comprobar la confirmación con la configuración de cambio seguro activa en Supabase Auth.

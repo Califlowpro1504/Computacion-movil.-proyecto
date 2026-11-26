@@ -71,6 +71,39 @@ void main() {
     });
   }
 
+  testWidgets(
+    'abre revisión de solicitudes solo para un administrador activo',
+    (tester) async {
+      var active = true;
+      Widget app() => MaterialApp(
+        home: ProfileAccessGate(
+          key: ValueKey(active),
+          userId: 'usuario-prueba',
+          selectedRole: AccessRole.administrador,
+          loadProfile: () async => {
+            ...validProfile,
+            'es_admin': true,
+            'activo': active,
+          },
+          onSignOut: () async {},
+          authorizedBuilder: (_) => const Text('Inicio cliente'),
+          adminBuilder: (_) => const Text('Revisar solicitudes'),
+        ),
+      );
+
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      expect(find.text('Revisar solicitudes'), findsOneWidget);
+      expect(find.text('Inicio cliente'), findsNothing);
+
+      active = false;
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      expect(find.text('Revisar solicitudes'), findsNothing);
+      expect(find.text('Volver al acceso'), findsOneWidget);
+    },
+  );
+
   final blockedProfiles = <String, Map<String, dynamic>?>{
     'perfil inexistente': null,
     'cuenta inactiva': {...validProfile, 'activo': false},
