@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../auth/data/services/auth_email_redirect.dart';
+
 class ProfileService {
   ProfileService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
@@ -24,6 +26,13 @@ class ProfileService {
     }
 
     return {...profile, 'correo': user.email ?? ''};
+  }
+
+  Future<void> solicitarCambioCorreo(String correo) async {
+    await _client.auth.updateUser(
+      UserAttributes(email: correo),
+      emailRedirectTo: authEmailRedirect,
+    );
   }
 
   Future<void> actualizarMisDatos({

@@ -5,6 +5,8 @@ import '../validators/auth_validators.dart';
 import 'register_screen.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import 'role_selection_screen.dart';
+import 'password_recovery_screen.dart';
+import '../../data/services/password_recovery_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -43,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _iniciarSesion() async {
-  if (!_formKey.currentState!.validate()) return;
+  if (_cargando || !_formKey.currentState!.validate()) return;
 
   setState(() => _cargando = true);
 
@@ -53,15 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordController.text,
     );
 
+    // La sesión se verifica antes de mostrar el destino correspondiente.
+  } catch (_) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Inicio de sesión exitoso.')),
-    );
-    // SessionGate muestra el inicio al recibir la sesión de Supabase.
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      const SnackBar(
+        content: Text('No pudimos iniciar sesión. Verifica tus datos y tu conexión.'),
+      ),
     );
   } finally {
     if (mounted) setState(() => _cargando = false);
@@ -126,8 +126,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // TODO: navegar a pantalla de recuperar contraseña (RF-003)
+                    onPressed: _cargando ? null : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PasswordRecoveryScreen.request(
+                            initialEmail: _correoController.text.trim(),
+                            onSubmit: requestPasswordRecovery,
+                          ),
+                        ),
+                      );
                     },
                     child: const Text('¿Olvidaste tu contraseña?'),
                   ),

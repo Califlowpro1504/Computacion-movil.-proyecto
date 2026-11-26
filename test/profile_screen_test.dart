@@ -17,6 +17,43 @@ Widget buildProfileApp(Future<Map<String, dynamic>?> Function() loader) {
 }
 
 void main() {
+  testWidgets('edita desde Mi perfil y vuelve a consultar los datos', (
+    tester,
+  ) async {
+    var profile = Map<String, dynamic>.of(exampleProfile);
+    var loads = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(
+          loadProfile: () async {
+            loads++;
+            return profile;
+          },
+          saveProfile: (name, surname, phone) async => profile = {
+            ...profile,
+            'nombre': name,
+            'apellido': surname,
+            'telefono': phone,
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Editar perfil'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Editar perfil'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Elena');
+    await tester.ensureVisible(find.text('Guardar cambios'));
+    await tester.tap(find.text('Guardar cambios'));
+    await tester.pumpAndSettle();
+    expect(loads, 2);
+    expect(find.text('Elena'), findsOneWidget);
+  });
+
   testWidgets('muestra los datos del perfil', (tester) async {
     await tester.pumpWidget(buildProfileApp(() async => exampleProfile));
 

@@ -88,11 +88,11 @@ test/                      # Pruebas automáticas
 | Inicio de sesión (RF-002) | ✅ Hecho |
 | Seguridad de base de datos (RLS y rol en servidor) | ✅ Hecho |
 | Política de contraseña robusta | Validación local implementada; verificar configuración de Supabase |
-| Recuperación de contraseña (RF-003) | ⬜ Pendiente |
-| Perfil (RF-004) | ⬜ Pendiente |
+| Recuperación de contraseña (RF-003) | Flujo por correo implementado; validar entrega y redirección con Supabase |
+| Perfil (RF-004) | Consulta, edición y solicitud de cambio de correo |
 | Sesión e inicio | Implementado con eventos de Supabase; pendiente validación real |
 | Navegación por rol y gestión con Riverpod | ⬜ Pendiente |
-| Marketplace: inicio, búsqueda, filtros, comercios (RF-005 a RF-011) | ⬜ Pendiente |
+| Marketplace y comercios (RF-005 a RF-011) | Catálogo, solicitudes, revisión y gestión; requieren la migración de marketplace |
 | Módulos de Productos/Pedidos y Barberías/Citas | Ver ramas de cada integrante |
 
 ---
@@ -149,7 +149,7 @@ flutter run
 ### Pruebas
 
 ```bash
-flutter test test/auth_validators_test.dart
+flutter test
 ```
 
 ---
@@ -214,6 +214,14 @@ chore: ignora android/build en git
 - Configurar un servicio de correo propio (SMTP) para los correos de confirmación.
 
 ---
+
+## Configuración de marketplace y correo
+
+- Prueba `database/02_marketplace_comercios.sql` en staging con el esquema de Supabase del equipo. Depende de `profiles`, `barberias` (UUID), `products` y `servicios`, y usa los identificadores de comercio que ya consumen los módulos de compras y citas. Aplica el script después de disponer de esas tablas y las reglas de perfiles. La migración no actualiza las filas existentes ni modifica las políticas de compras, barberías o citas.
+- Para aprobar solicitudes, usa una cuenta activa con el rol de administrador asignado en el servidor y la entrada **Administrador → Revisar solicitudes**. La pantalla `CommerceRequestsScreen.review` también se puede abrir desde el panel del módulo de administración. Un cliente usa **Mi cuenta → Mis comercios**. La visibilidad que controla el propietario afecta al marketplace y respeta la desactivación administrativa del registro existente.
+- El detalle reúne productos y servicios activos por comercio. Admite un logo por URL HTTPS. Las reseñas publicadas por un proceso de servidor autorizado se almacenan en `resenas_marketplace`; la app no crea reseñas ni muestra calificaciones sin datos. El catálogo conserva los comercios existentes, aunque algunos no tengan horario, descripción, zona o reseñas.
+- En **Supabase Auth → URL Configuration**, autoriza `cutandgo://auth/callback` para Android/iOS y la URL exacta de la app web. Activa confirmación de correo, cambio seguro de correo y un servicio SMTP de pruebas. Comprueba registro, recuperación PKCE desde el dispositivo o navegador que solicitó el enlace, y confirmación de cambio de correo en ambas direcciones. Mantén la política de contraseñas alineada con el mínimo de 12 caracteres de la app.
+- Las pruebas SQL usan tablas simuladas y roles de PostgreSQL. Ejecuta `psql -f database/tests/marketplace.sql` en una instancia local vacía. Cubren autorización por rol, propietarios, cuentas suspendidas, preservación de comercios anteriores, revisión, edición y búsqueda. Valida también el esquema y las políticas reales en staging antes de publicar.
 
 ## Documentación de requerimientos
 
